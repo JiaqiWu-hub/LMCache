@@ -3134,7 +3134,7 @@
           "type": "timeseries"
         }
       ],
-      "title": "5. 吞吐",
+      "title": "5. 吞吐与IOPS",
       "type": "row"
     },
     {
@@ -3948,6 +3948,6 @@
   "timezone": "Asia/Shanghai",
   "title": "TTFT Analysis",
   "uid": "ttft-analysis",
-  "version": 76,
+  "version": 78,
   "weekStart": ""
 }
