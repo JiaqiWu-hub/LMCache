@@ -9,6 +9,7 @@ deterministic; the end-to-end test drives through ``EventBus``.
 
 # Standard
 import time
+from typing import Optional
 
 # Third Party
 import pytest
@@ -39,16 +40,20 @@ def _start_event(
     engine_id: int = 0,
     device: str = f"{torch_device_type}:0",
     model_name: str = "test-model",
+    transfer_key: Optional[str] = None,
 ) -> Event:
+    metadata = {
+        "engine_id": engine_id,
+        "device": device,
+        "model_name": model_name,
+    }
+    if transfer_key is not None:
+        metadata["transfer_key"] = transfer_key
     return Event(
         event_type=event_type,
         timestamp=t,
         session_id=session_id,
-        metadata={
-            "engine_id": engine_id,
-            "device": device,
-            "model_name": model_name,
-        },
+        metadata=metadata,
     )
 
 
@@ -60,17 +65,39 @@ def _end_event(
     engine_id: int = 0,
     device: str = f"{torch_device_type}:0",
     model_name: str = "test-model",
+    transfer_key: Optional[str] = None,
 ) -> Event:
+    metadata = {
+        "engine_id": engine_id,
+        "device": device,
+        "model_name": model_name,
+        "total_bytes": total_bytes,
+    }
+    if transfer_key is not None:
+        metadata["transfer_key"] = transfer_key
     return Event(
         event_type=event_type,
         timestamp=t,
         session_id=session_id,
-        metadata={
-            "engine_id": engine_id,
-            "device": device,
-            "model_name": model_name,
-            "total_bytes": total_bytes,
-        },
+        metadata=metadata,
+    )
+
+
+def _submitted_event(
+    event_type: EventType,
+    session_id: str,
+    t: float,
+    device: str = f"{torch_device_type}:0",
+    transfer_key: Optional[str] = None,
+) -> Event:
+    metadata = {"device": device}
+    if transfer_key is not None:
+        metadata["transfer_key"] = transfer_key
+    return Event(
+        event_type=event_type,
+        timestamp=t,
+        session_id=session_id,
+        metadata=metadata,
     )
 
 
@@ -183,6 +210,104 @@ class TestStoreThroughput:
             _end_event(EventType.MP_STORE_END, "req-drain", 0.1, total_bytes=1_000)
         )
         assert ("req-drain", f"{torch_device_type}:0") not in subscriber._pending_store
+
+
+class TestCorrelatedStoreDurations:
+    def test_concurrent_transfers_with_same_session_do_not_collide(
+        self, subscriber
+    ):
+        total_metric = "lmcache_mp.store_total_duration"
+        duration_metric = "lmcache_mp.l0_l1_store_duration"
+        total_count_before = _total_count(total_metric)
+        duration_count_before = _total_count(duration_metric)
+        total_sum_before = _sum(total_metric)
+        duration_sum_before = _sum(duration_metric)
+
+        subscriber._on_store_submitted(
+            _submitted_event(
+                EventType.MP_STORE_SUBMITTED,
+                "same-session",
+                100.0,
+                transfer_key="same-session#1",
+            )
+        )
+        subscriber._on_store_submitted(
+            _submitted_event(
+                EventType.MP_STORE_SUBMITTED,
+                "same-session",
+                100.1,
+                transfer_key="same-session#2",
+            )
+        )
+        subscriber._on_store_start(
+            _start_event(
+                EventType.MP_STORE_START,
+                "same-session",
+                101.0,
+                transfer_key="same-session#1",
+            )
+        )
+        subscriber._on_store_start(
+            _start_event(
+                EventType.MP_STORE_START,
+                "same-session",
+                101.2,
+                transfer_key="same-session#2",
+            )
+        )
+        subscriber._on_store_end(
+            _end_event(
+                EventType.MP_STORE_END,
+                "same-session",
+                102.2,
+                total_bytes=1_000,
+                transfer_key="same-session#1",
+            )
+        )
+        subscriber._on_store_end(
+            _end_event(
+                EventType.MP_STORE_END,
+                "same-session",
+                102.0,
+                total_bytes=1_000,
+                transfer_key="same-session#2",
+            )
+        )
+
+        assert _total_count(total_metric) == total_count_before + 2
+        assert _total_count(duration_metric) == duration_count_before + 2
+        assert _sum(total_metric) - total_sum_before == pytest.approx(4.1)
+        assert _sum(duration_metric) - duration_sum_before == pytest.approx(2.0)
+
+    def test_missing_parent_does_not_create_unpaired_duration(self, subscriber):
+        total_metric = "lmcache_mp.store_total_duration"
+        duration_metric = "lmcache_mp.l0_l1_store_duration"
+        throughput_metric = _STORE_METRIC
+        total_count_before = _total_count(total_metric)
+        duration_count_before = _total_count(duration_metric)
+        throughput_count_before = _total_count(throughput_metric)
+
+        subscriber._on_store_start(
+            _start_event(
+                EventType.MP_STORE_START,
+                "missing-parent",
+                200.0,
+                transfer_key="missing-parent#1",
+            )
+        )
+        subscriber._on_store_end(
+            _end_event(
+                EventType.MP_STORE_END,
+                "missing-parent",
+                200.1,
+                total_bytes=1_000_000_000,
+                transfer_key="missing-parent#1",
+            )
+        )
+
+        assert _total_count(total_metric) == total_count_before
+        assert _total_count(duration_metric) == duration_count_before
+        assert _total_count(throughput_metric) == throughput_count_before + 1
 
 
 class TestLoadThroughput:

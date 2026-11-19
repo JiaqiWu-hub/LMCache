@@ -7,7 +7,9 @@
 #include <sys/statvfs.h>
 #include <unistd.h>
 #include <cstring>
+#include <deque>
 #include <filesystem>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -39,8 +41,12 @@ class FSConnector : public ConnectorBase<WorkerFSConn> {
               size_t read_ahead_size = 0);
   ~FSConnector() override;
 
+  std::vector<IOSample> drain_io_samples();
+
  protected:
   WorkerFSConn create_connection() override;
+  void do_batch_get(WorkerFSConn& conn, const Request& req) override;
+  void do_batch_set(WorkerFSConn& conn, const Request& req) override;
   void do_single_get(WorkerFSConn& conn, const std::string& key, void* buf,
                      size_t len, size_t chunk_size) override;
   void do_single_set(WorkerFSConn& conn, const std::string& key,
@@ -68,12 +74,22 @@ class FSConnector : public ConnectorBase<WorkerFSConn> {
   static std::string replace_all(const std::string& str,
                                  const std::string& from,
                                  const std::string& to);
+  void do_single_set_impl(WorkerFSConn& conn, const std::string& key,
+                          const void* buf, size_t len, size_t chunk_size,
+                          bool* did_attempt);
+  void record_io_sample(bool is_write, size_t io_size,
+                        std::chrono::steady_clock::time_point submitted_at,
+                        std::chrono::steady_clock::time_point started_at,
+                        std::chrono::steady_clock::time_point finished_at,
+                        bool ok);
 
   std::string base_path_;
   std::string relative_tmp_dir_;
   bool use_odirect_;
   size_t disk_block_size_;
   size_t read_ahead_size_;
+  std::mutex io_samples_mu_;
+  std::deque<IOSample> io_samples_;
 };
 
 }  // namespace connector

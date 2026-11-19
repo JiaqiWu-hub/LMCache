@@ -9,6 +9,8 @@
 namespace lmcache {
 namespace connector {
 
+using Clock = std::chrono::steady_clock;
+
 // ---------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------
@@ -154,6 +156,33 @@ FSConnector::FSConnector(std::string base_path, int num_workers,
 
 FSConnector::~FSConnector() { close(); }
 
+std::vector<IOSample> FSConnector::drain_io_samples() {
+  std::vector<IOSample> samples;
+  std::lock_guard<std::mutex> lock(io_samples_mu_);
+  samples.reserve(io_samples_.size());
+  while (!io_samples_.empty()) {
+    samples.push_back(io_samples_.front());
+    io_samples_.pop_front();
+  }
+  return samples;
+}
+
+void FSConnector::record_io_sample(
+    bool is_write, size_t io_size, Clock::time_point submitted_at,
+    Clock::time_point started_at, Clock::time_point finished_at, bool ok) {
+  IOSample sample;
+  sample.is_write = is_write;
+  sample.io_size = io_size;
+  sample.queue_wait_seconds =
+      std::chrono::duration<double>(started_at - submitted_at).count();
+  sample.service_seconds =
+      std::chrono::duration<double>(finished_at - started_at).count();
+  sample.ok = ok;
+
+  std::lock_guard<std::mutex> lock(io_samples_mu_);
+  io_samples_.push_back(sample);
+}
+
 WorkerFSConn FSConnector::create_connection() {
   WorkerFSConn conn;
   conn.base_path = base_path_;
@@ -164,6 +193,53 @@ WorkerFSConn FSConnector::create_connection() {
   conn.disk_block_size = disk_block_size_;
   conn.read_ahead_size = read_ahead_size_;
   return conn;
+}
+
+void FSConnector::do_batch_get(WorkerFSConn& conn, const Request& req) {
+  for (size_t i = 0; i < req.keys.size(); ++i) {
+    const auto submitted_at = req.batch->submitted_at;
+    const auto started_at = Clock::now();
+    bool ok = false;
+    try {
+      do_single_get(conn, req.keys[i], req.buf_ptrs[i], req.buf_lens[i],
+                    req.batch_chunk_num_bytes);
+      req.batch->per_key_results[req.start_idx + i] = 1;
+      ok = true;
+    } catch (const std::exception& e) {
+      req.batch->per_key_results[req.start_idx + i] = 0;
+      fprintf(stderr, "[LMCache GET] key %s failed: %s\n",
+              req.keys[i].c_str(), e.what());
+    }
+    const auto finished_at = Clock::now();
+    record_io_sample(false, req.buf_lens[i], submitted_at, started_at,
+                     finished_at, ok);
+  }
+}
+
+void FSConnector::do_batch_set(WorkerFSConn& conn, const Request& req) {
+  for (size_t i = 0; i < req.keys.size(); ++i) {
+    const auto submitted_at = req.batch->submitted_at;
+    const auto started_at = Clock::now();
+    bool did_attempt = false;
+    bool ok = false;
+    try {
+      do_single_set_impl(conn, req.keys[i], req.buf_ptrs[i], req.buf_lens[i],
+                         req.batch_chunk_num_bytes, &did_attempt);
+      ok = did_attempt;
+    } catch (...) {
+      if (did_attempt) {
+        const auto finished_at = Clock::now();
+        record_io_sample(true, req.buf_lens[i], submitted_at, started_at,
+                         finished_at, false);
+      }
+      throw;
+    }
+    if (did_attempt) {
+      const auto finished_at = Clock::now();
+      record_io_sample(true, req.buf_lens[i], submitted_at, started_at,
+                       finished_at, ok);
+    }
+  }
 }
 
 void FSConnector::do_single_get(WorkerFSConn& conn, const std::string& key,
@@ -223,12 +299,27 @@ void FSConnector::do_single_get(WorkerFSConn& conn, const std::string& key,
 void FSConnector::do_single_set(WorkerFSConn& conn, const std::string& key,
                                 const void* buf, size_t len,
                                 size_t chunk_size) {
+  do_single_set_impl(conn, key, buf, len, chunk_size, nullptr);
+}
+
+void FSConnector::do_single_set_impl(WorkerFSConn& conn,
+                                     const std::string& key, const void* buf,
+                                     size_t len, size_t chunk_size,
+                                     bool* did_attempt) {
+  (void)chunk_size;
+  if (did_attempt != nullptr) {
+    *did_attempt = false;
+  }
   std::string filename = key_to_filename(key);
   auto file_path = conn.base_path / filename;
 
   // Skip if already stored on disk
   if (std::filesystem::exists(file_path)) {
     return;
+  }
+
+  if (did_attempt != nullptr) {
+    *did_attempt = true;
   }
 
   // Determine temp file path

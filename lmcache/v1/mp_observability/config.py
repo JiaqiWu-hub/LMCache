@@ -413,9 +413,11 @@ def init_observability(
             L1LifecycleSubscriber,
             L1MetricsSubscriber,
             L2FailureMetricsSubscriber,
+            L2IOSubscriber,
             L2MetricsSubscriber,
             L2ThroughputSubscriber,
             LookupMetricsSubscriber,
+            PrefetchLatencySubscriber,
             SMLifecycleSubscriber,
             TimeoutMetricsSubscriber,
         )
@@ -429,8 +431,10 @@ def init_observability(
         bus.register_subscriber(L0L1ThroughputSubscriber())
         bus.register_subscriber(L2MetricsSubscriber())
         bus.register_subscriber(L2FailureMetricsSubscriber())
+        bus.register_subscriber(L2IOSubscriber())
         bus.register_subscriber(L2ThroughputSubscriber())
         bus.register_subscriber(LookupMetricsSubscriber())
+        bus.register_subscriber(PrefetchLatencySubscriber())
         bus.register_subscriber(SMLifecycleSubscriber(sample_rate=sample_rate))
         bus.register_subscriber(BlendMetricsSubscriber())
         bus.register_subscriber(EngineMetricsSubscriber())

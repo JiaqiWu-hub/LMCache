@@ -1,0 +1,3797 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "description": "TTFT Analysis：分位数和均值均使用 vLLM 实际 time_to_first_token 统计。",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": 24,
+  "links": [],
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 100,
+      "panels": [],
+      "title": "1. TTFT 总览",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cf5zm84e41v5se"
+      },
+      "description": "TTFT、请求排队和 Prefill 的平均值。三条曲线均由对应 histogram 的 _sum / _count 计算；指标单位均为秒。",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "axisLabel": "耗时",
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 1,
+            "showPoints": "never"
+          },
+          "decimals": 3,
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 1
+      },
+      "id": 1001,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(vllm:time_to_first_token_seconds_sum{service_name=~\"$service_name\"}[$__rate_interval])) / sum(rate(vllm:time_to_first_token_seconds_count{service_name=~\"$service_name\"}[$__rate_interval]))",
+          "legendFormat": "TTFT",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(vllm:request_queue_time_seconds_sum{service_name=~\"$service_name\"}[$__rate_interval])) / sum(rate(vllm:request_queue_time_seconds_count{service_name=~\"$service_name\"}[$__rate_interval]))",
+          "legendFormat": "请求排队",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(rate(vllm:request_prefill_time_seconds_sum{service_name=~\"$service_name\"}[$__rate_interval])) / sum(rate(vllm:request_prefill_time_seconds_count{service_name=~\"$service_name\"}[$__rate_interval]))",
+          "legendFormat": "Prefill",
+          "refId": "C"
+        }
+      ],
+      "title": "TTFT均值拆解",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cf5zm84e41v5se"
+      },
+      "description": "TTFT、请求排队和 Prefill 的 P99。使用 histogram_quantile 计算，精度受 histogram bucket 边界影响；指标单位均为秒。",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "axisLabel": "耗时",
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 1,
+            "showPoints": "never"
+          },
+          "decimals": 3,
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 1
+      },
+      "id": 1002,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(vllm:time_to_first_token_seconds_bucket{service_name=~\"$service_name\"}[$__rate_interval])))",
+          "legendFormat": "TTFT",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(vllm:request_queue_time_seconds_bucket{service_name=~\"$service_name\"}[$__rate_interval])))",
+          "legendFormat": "请求排队",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(vllm:request_prefill_time_seconds_bucket{service_name=~\"$service_name\"}[$__rate_interval])))",
+          "legendFormat": "Prefill",
+          "refId": "C"
+        }
+      ],
+      "title": "TTFT P99拆解",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cf5zm84e41v5se"
+      },
+      "description": "TTFT、请求排队和 Prefill 的 P99.99。使用 histogram_quantile 计算，精度受 histogram bucket 边界影响；指标单位均为秒。",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "axisLabel": "耗时",
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 1,
+            "showPoints": "never"
+          },
+          "decimals": 3,
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 1
+      },
+      "id": 1003,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.9999, sum by (le) (rate(vllm:time_to_first_token_seconds_bucket{service_name=~\"$service_name\"}[$__rate_interval])))",
+          "legendFormat": "TTFT",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.9999, sum by (le) (rate(vllm:request_queue_time_seconds_bucket{service_name=~\"$service_name\"}[$__rate_interval])))",
+          "legendFormat": "请求排队",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.9999, sum by (le) (rate(vllm:request_prefill_time_seconds_bucket{service_name=~\"$service_name\"}[$__rate_interval])))",
+          "legendFormat": "Prefill",
+          "refId": "C"
+        }
+      ],
+      "title": "TTFT P9999拆解",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 9
+      },
+      "id": 1100,
+      "panels": [],
+      "title": "2. Token命中构成",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cf5zm84e41v5se"
+      },
+      "description": "指标：vllm:prompt_tokens_total、vllm:prompt_tokens_by_source_total。图为 token/s 速率：总数来自 prompt_tokens_total；GPU 显存命中、LMCache 命中、需要计算分别对应 source=local_cache_hit、external_kv_transfer、local_compute。",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "axisLabel": "token/s",
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "showPoints": "never"
+          },
+          "decimals": 2,
+          "unit": "suffix:tokens/s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 10
+      },
+      "id": 1101,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(vllm:prompt_tokens_total{service_name=~\"$service_name\"}[$__rate_interval]))",
+          "legendFormat": "Prompt Token 总数",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(vllm:prompt_tokens_by_source_total{service_name=~\"$service_name\",source=\"local_cache_hit\"}[$__rate_interval]))",
+          "legendFormat": "GPU 显存命中",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(rate(vllm:prompt_tokens_by_source_total{service_name=~\"$service_name\",source=\"external_kv_transfer\"}[$__rate_interval]))",
+          "legendFormat": "LMCache 命中",
+          "refId": "C"
+        },
+        {
+          "expr": "sum(rate(vllm:prompt_tokens_by_source_total{service_name=~\"$service_name\",source=\"local_compute\"}[$__rate_interval]))",
+          "legendFormat": "需要计算",
+          "refId": "D"
+        }
+      ],
+      "title": "Prompt Token 来源构成",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cf5zm84e41v5se"
+      },
+      "description": "指标：vllm:prompt_tokens_by_source_total。总命中率=(local_cache_hit + external_kv_transfer) / 全部 prompt token；GPU 显存命中率=local_cache_hit / 全部；LMCache 命中率=external_kv_transfer / 全部。",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "axisLabel": "命中率",
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "showPoints": "never"
+          },
+          "decimals": 4,
+          "max": 1,
+          "min": 0,
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 10
+      },
+      "id": 1102,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(vllm:prompt_tokens_by_source_total{service_name=~\"$service_name\",source=~\"local_cache_hit|external_kv_transfer\"}[$__rate_interval])) / sum(rate(vllm:prompt_tokens_by_source_total{service_name=~\"$service_name\"}[$__rate_interval]))",
+          "legendFormat": "KVCache 总命中率",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(vllm:prompt_tokens_by_source_total{service_name=~\"$service_name\",source=\"local_cache_hit\"}[$__rate_interval])) / sum(rate(vllm:prompt_tokens_by_source_total{service_name=~\"$service_name\"}[$__rate_interval]))",
+          "legendFormat": "GPU 显存命中率",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(rate(vllm:prompt_tokens_by_source_total{service_name=~\"$service_name\",source=\"external_kv_transfer\"}[$__rate_interval])) / sum(rate(vllm:prompt_tokens_by_source_total{service_name=~\"$service_name\"}[$__rate_interval]))",
+          "legendFormat": "LMCache 命中率",
+          "refId": "C"
+        }
+      ],
+      "title": "KVCache 命中率",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 18
+      },
+      "id": 200,
+      "panels": [],
+      "title": "3. 运行与等待中的请求",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cf5zm84e41v5se"
+      },
+      "description": "running 持续升高通常意味着执行侧饱和；waiting 出现峰值通常与 queue time 上升同步。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 12,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 1,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 19
+      },
+      "id": 302,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service_name) (vllm:num_requests_running{service_name=~\"$service_name\"})",
+          "legendFormat": "running",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service_name) (vllm:num_requests_waiting{service_name=~\"$service_name\"})",
+          "legendFormat": "waiting",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "运行中与等待中的请求",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 27
+      },
+      "id": 800,
+      "panels": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "description": "展示各阶段平均耗时。右侧为同一组指标的 P99 和 P9999；阶段间存在包含关系，不应直接相加。",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "decimals": 3,
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 9,
+            "w": 8,
+            "x": 0,
+            "y": 41
+          },
+          "id": 801,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "sum by (service_name) (rate(lmcache_mp_lookup_prefetch_duration_seconds_sum{service_name=~\"$service_name\"}[1m]))\n/\nclamp_min(sum by (service_name) (rate(lmcache_mp_lookup_prefetch_duration_seconds_count{service_name=~\"$service_name\"}[1m])), 1e-9)",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} Lookup/Prefetch 平均值",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "sum by (service_name) (rate(lmcache_mp_l1_lookup_duration_seconds_sum{service_name=~\"$service_name\"}[1m]))\n/\nclamp_min(sum by (service_name) (rate(lmcache_mp_l1_lookup_duration_seconds_count{service_name=~\"$service_name\"}[1m])), 1e-9)",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} 内存层 Lookup 平均值",
+              "range": true,
+              "refId": "B"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "sum by (service_name) (rate(lmcache_mp_l2_lookup_duration_seconds_sum{service_name=~\"$service_name\"}[1m]))\n/\nclamp_min(sum by (service_name) (rate(lmcache_mp_l2_lookup_duration_seconds_count{service_name=~\"$service_name\"}[1m])), 1e-9)",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} 本地SSD Lookup 平均值",
+              "range": true,
+              "refId": "C"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "sum by (service_name) (rate(lmcache_mp_l1_allocate_duration_seconds_sum{service_name=~\"$service_name\"}[1m]))\n/\nclamp_min(sum by (service_name) (rate(lmcache_mp_l1_allocate_duration_seconds_count{service_name=~\"$service_name\"}[1m])), 1e-9)",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} 内存层 Allocate 平均值",
+              "range": true,
+              "refId": "D"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "sum by (service_name, l2_name) (rate(lmcache_mp_l2_load_duration_seconds_sum{service_name=~\"$service_name\"}[1m]))\n/\nclamp_min(sum by (service_name, l2_name) (rate(lmcache_mp_l2_load_duration_seconds_count{service_name=~\"$service_name\"}[1m])), 1e-9)",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} 本地SSD→内存层 Prefetch（均值）",
+              "range": true,
+              "refId": "E"
+            }
+          ],
+          "title": "Lookup / Prefetch 分段耗时（平均值）",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "description": "展示各阶段 P99 尾延迟。左侧为同一组指标的平均值；阶段间存在包含关系，不应直接相加。",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "decimals": 3,
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 9,
+            "w": 8,
+            "x": 8,
+            "y": 41
+          },
+          "id": 851,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.99, sum by (le, service_name) (rate(lmcache_mp_lookup_prefetch_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} Lookup/Prefetch P99",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.99, sum by (le, service_name) (rate(lmcache_mp_l1_lookup_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} 内存层 Lookup P99",
+              "range": true,
+              "refId": "B"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.99, sum by (le, service_name) (rate(lmcache_mp_l2_lookup_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} 本地SSD Lookup P99",
+              "range": true,
+              "refId": "C"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.99, sum by (le, service_name) (rate(lmcache_mp_l1_allocate_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} 内存层 Allocate P99",
+              "range": true,
+              "refId": "D"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.99, sum by (le, service_name, l2_name) (rate(lmcache_mp_l2_load_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} 本地SSD→内存层 Prefetch（P99）",
+              "range": true,
+              "refId": "E"
+            }
+          ],
+          "title": "Lookup / Prefetch 分段耗时（P99）",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "description": "展示各阶段 P9999 尾延迟。左侧为同一组指标的平均值；阶段间存在包含关系，不应直接相加。",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "decimals": 3,
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 9,
+            "w": 8,
+            "x": 16,
+            "y": 41
+          },
+          "id": 861,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.9999, sum by (le, service_name) (rate(lmcache_mp_lookup_prefetch_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} Lookup/Prefetch P9999",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.9999, sum by (le, service_name) (rate(lmcache_mp_l1_lookup_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} 内存层 Lookup P9999",
+              "range": true,
+              "refId": "B"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.9999, sum by (le, service_name) (rate(lmcache_mp_l2_lookup_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} 本地SSD Lookup P9999",
+              "range": true,
+              "refId": "C"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.9999, sum by (le, service_name) (rate(lmcache_mp_l1_allocate_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} 内存层 Allocate P9999",
+              "range": true,
+              "refId": "D"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.9999, sum by (le, service_name, l2_name) (rate(lmcache_mp_l2_load_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} 本地SSD→内存层 Prefetch（P9999）",
+              "range": true,
+              "refId": "E"
+            }
+          ],
+          "title": "Lookup / Prefetch 分段耗时（P9999）",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "description": "展示 Get链路总耗时与 H2D耗时的平均耗时。右侧为 P99 和 P9999。",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "decimals": 3,
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 50
+          },
+          "id": 802,
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull",
+                "mean"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "sum by (service_name) (rate(lmcache_mp_retrieve_total_duration_seconds_sum{service_name=~\"$service_name\"}[1m]))\n/\nclamp_min(sum by (service_name) (rate(lmcache_mp_retrieve_total_duration_seconds_count{service_name=~\"$service_name\"}[1m])), 1e-9)",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} Get链路总耗时平均值",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "sum by (service_name, device) (rate(lmcache_mp_l0_l1_load_duration_seconds_sum{service_name=~\"$service_name\"}[1m]))\n/\nclamp_min(sum by (service_name, device) (rate(lmcache_mp_l0_l1_load_duration_seconds_count{service_name=~\"$service_name\"}[1m])), 1e-9)",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} H2D耗时",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "Get链路耗时（平均值）",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "description": "展示 Retrieve Total 与 GPU Copy 的 P99 尾延迟。左侧为平均值。",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "decimals": 3,
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 50
+          },
+          "id": 852,
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull",
+                "mean"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.99, sum by (le, service_name) (rate(lmcache_mp_retrieve_total_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} Get链路总耗时 P99",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.99, sum by (le, service_name, device) (rate(lmcache_mp_l0_l1_load_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} H2D耗时 P99",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "Get链路耗时（P99）",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "description": "展示 Retrieve Total 与 GPU Copy 的 P9999 尾延迟。左侧为平均值。",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "decimals": 3,
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 50
+          },
+          "id": 862,
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull",
+                "mean"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.9999, sum by (le, service_name) (rate(lmcache_mp_retrieve_total_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} Get链路总耗时 P9999",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.9999, sum by (le, service_name, device) (rate(lmcache_mp_l0_l1_load_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} H2D耗时 P9999",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "Get链路耗时（P9999）",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "description": "展示 Set链路各阶段平均耗时。右侧为 P99 和 P9999；Set 不在首 token 的加载路径上。",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "decimals": 3,
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 58
+          },
+          "id": 803,
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull",
+                "mean"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "sum by (service_name) (rate(lmcache_mp_store_total_duration_seconds_sum{service_name=~\"$service_name\"}[1m]))\n/\nclamp_min(sum by (service_name) (rate(lmcache_mp_store_total_duration_seconds_count{service_name=~\"$service_name\"}[1m])), 1e-9)",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} Set Total 平均值",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "sum by (service_name, device) (rate(lmcache_mp_l0_l1_store_duration_seconds_sum{service_name=~\"$service_name\"}[1m]))\n/\nclamp_min(sum by (service_name, device) (rate(lmcache_mp_l0_l1_store_duration_seconds_count{service_name=~\"$service_name\"}[1m])), 1e-9)",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} GPU to 内存",
+              "range": true,
+              "refId": "B"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "sum by (service_name, l2_name) (rate(lmcache_mp_l2_store_duration_seconds_sum{service_name=~\"$service_name\"}[1m]))\n/\nclamp_min(sum by (service_name, l2_name) (rate(lmcache_mp_l2_store_duration_seconds_count{service_name=~\"$service_name\"}[1m])), 1e-9)",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} 内存 to 本地SSD",
+              "range": true,
+              "refId": "C"
+            }
+          ],
+          "title": "Set链路耗时（平均值）",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "description": "展示 Store 各阶段 P99 尾延迟。左侧为平均值；Store 不在首 token 的加载路径上。",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "decimals": 3,
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 58
+          },
+          "id": 853,
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull",
+                "mean"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.99, sum by (le, service_name) (rate(lmcache_mp_store_total_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} Set Total P99",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.99, sum by (le, service_name, device) (rate(lmcache_mp_l0_l1_store_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} GPU to 内存 P99",
+              "range": true,
+              "refId": "B"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.99, sum by (le, service_name, l2_name) (rate(lmcache_mp_l2_store_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} 内存 to 本地SSD P99",
+              "range": true,
+              "refId": "C"
+            }
+          ],
+          "title": "Set链路耗时（P99）",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "description": "展示 Store 各阶段 P9999 尾延迟。左侧为平均值；Store 不在首 token 的加载路径上。",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "decimals": 3,
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 58
+          },
+          "id": 863,
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull",
+                "mean"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.9999, sum by (le, service_name) (rate(lmcache_mp_store_total_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} Set Total P9999",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.9999, sum by (le, service_name, device) (rate(lmcache_mp_l0_l1_store_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} GPU to 内存 P9999",
+              "range": true,
+              "refId": "B"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.9999, sum by (le, service_name, l2_name) (rate(lmcache_mp_l2_store_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} 内存 to 本地SSD P9999",
+              "range": true,
+              "refId": "C"
+            }
+          ],
+          "title": "Set链路耗时（P9999）",
+          "type": "timeseries"
+        }
+      ],
+      "title": "4. LMCache 链路耗时",
+      "type": "row"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 60
+      },
+      "id": 830,
+      "panels": [],
+      "title": "4.1 L2 文件 I/O",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cf5zm84e41v5se"
+      },
+      "description": "展示所有 operation、L2 adapter 和 status 聚合后的平均队列等待时间。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 3,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 0,
+        "y": 61
+      },
+      "id": 820,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service_name, operation) (rate(lmcache_mp_l2_io_queue_wait_duration_seconds_sum{service_name=~\"$service_name\"}[1m]))\n/\nclamp_min(sum by (service_name, operation) (rate(lmcache_mp_l2_io_queue_wait_duration_seconds_count{service_name=~\"$service_name\"}[1m])), 1e-9)",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "{{operation}} Queue Wait 平均值",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "L2 I/O Queue Wait（平均值）",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cf5zm84e41v5se"
+      },
+      "description": "展示所有 operation、L2 adapter 和 status 聚合后的 P99 队列等待时间。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 3,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 8,
+        "y": 61
+      },
+      "id": 841,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, sum by (le, service_name, operation) (rate(lmcache_mp_l2_io_queue_wait_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "{{operation}} Queue Wait P99",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "L2 I/O Queue Wait（P99）",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cf5zm84e41v5se"
+      },
+      "description": "展示所有 operation、L2 adapter 和 status 聚合后的 P9999 队列等待时间。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 3,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 16,
+        "y": 61
+      },
+      "id": 864,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.9999, sum by (le, service_name, operation) (rate(lmcache_mp_l2_io_queue_wait_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "{{operation}} Queue Wait P9999",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "L2 I/O Queue Wait（P9999）",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cf5zm84e41v5se"
+      },
+      "description": "展示所有 operation、L2 adapter 和 status 聚合后的平均 I/O 服务时间。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 3,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 0,
+        "y": 70
+      },
+      "id": 821,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service_name, operation) (rate(lmcache_mp_l2_io_service_duration_seconds_sum{service_name=~\"$service_name\"}[1m]))\n/\nclamp_min(sum by (service_name, operation) (rate(lmcache_mp_l2_io_service_duration_seconds_count{service_name=~\"$service_name\"}[1m])), 1e-9)",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "{{operation}} Time 平均值",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "L2 I/O Time（平均值）",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cf5zm84e41v5se"
+      },
+      "description": "展示所有 operation、L2 adapter 和 status 聚合后的 P99 I/O 服务时间。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 3,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 8,
+        "y": 70
+      },
+      "id": 842,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, sum by (le, service_name, operation) (rate(lmcache_mp_l2_io_service_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "{{operation}} Time P99",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "L2 I/O Time（P99）",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cf5zm84e41v5se"
+      },
+      "description": "展示所有 operation、L2 adapter 和 status 聚合后的 P9999 I/O 服务时间。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 3,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 16,
+        "y": 70
+      },
+      "id": 865,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.9999, sum by (le, service_name, operation) (rate(lmcache_mp_l2_io_service_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "{{operation}} Time P9999",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "L2 I/O Time（P9999）",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cf5zm84e41v5se"
+      },
+      "description": "展示单次 I/O Size 平均值。百分位受粗桶线性插值影响，面板不展示。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 2,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 0,
+        "y": 79
+      },
+      "id": 822,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "editorMode": "code",
+          "expr": "label_replace((sum by (service_name, operation, l2_name) (rate(lmcache_mp_l2_io_size_bytes_sum{service_name=~\"$service_name\",l2_name=\"fs_native\",status=\"success\"}[1m])) / clamp_min(sum by (service_name, operation, l2_name) (rate(lmcache_mp_l2_io_size_bytes_count{service_name=~\"$service_name\",l2_name=\"fs_native\",status=\"success\"}[1m])), 1e-9)), \"l2_name\", \"本地SSD\", \"l2_name\", \"^fs_native$\")",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "{{l2_name}} {{operation}} I/O Size 平均值",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "L2 I/O Size（平均值）",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cf5zm84e41v5se"
+      },
+      "description": "按 LMCache 逻辑对象 buffer 字节计算的 L2 成功读写量，rate(size_sum)/1e6，单位 MB/s。反映应用层逻辑 I/O 带宽，不是底层设备物理带宽。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 3,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "MBs"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 8,
+        "y": 79
+      },
+      "id": 906,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "editorMode": "code",
+          "expr": "label_replace((\nsum by (service_name, l2_name) (rate(lmcache_mp_l2_io_size_bytes_sum{service_name=~\"$service_name\",l2_name=\"fs_native\",operation=\"read\",status=\"success\"}[1m])) / 1e6\n), \"l2_name\", \"本地SSD\", \"l2_name\", \"^fs_native$\")",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "{{l2_name}} 读带宽",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "editorMode": "code",
+          "expr": "label_replace((\nsum by (service_name, l2_name) (rate(lmcache_mp_l2_io_size_bytes_sum{service_name=~\"$service_name\",l2_name=\"fs_native\",operation=\"write\",status=\"success\"}[1m])) / 1e6\n), \"l2_name\", \"本地SSD\", \"l2_name\", \"^fs_native$\")",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "{{l2_name}} 写带宽",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "L2 I/O 带宽（成功读/写）",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cf5zm84e41v5se"
+      },
+      "description": "L2 成功逻辑对象读写操作速率，rate(size_count)，单位 ops/s；读和写分别统计。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 2,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "iops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 16,
+        "y": 79
+      },
+      "id": 907,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "editorMode": "code",
+          "expr": "label_replace((\nsum by (service_name, l2_name) (rate(lmcache_mp_l2_io_size_bytes_count{service_name=~\"$service_name\",l2_name=\"fs_native\",operation=\"read\",status=\"success\"}[1m]))\n), \"l2_name\", \"本地SSD\", \"l2_name\", \"^fs_native$\")",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "{{l2_name}} 读 IOPS",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "editorMode": "code",
+          "expr": "label_replace((\nsum by (service_name, l2_name) (rate(lmcache_mp_l2_io_size_bytes_count{service_name=~\"$service_name\",l2_name=\"fs_native\",operation=\"write\",status=\"success\"}[1m]))\n), \"l2_name\", \"本地SSD\", \"l2_name\", \"^fs_native$\")",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "{{l2_name}} 写 IOPS",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "L2 I/O IOPS（成功读/写）",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 88
+      },
+      "id": 400,
+      "panels": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "description": "GPU 显存写入内存层的吞吐量，使用当前选择的时间桶计算。",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 12,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "decimals": 3,
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "GBs"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 42
+          },
+          "id": 719,
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull",
+                "mean"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "sum by (service_name) (rate(lmcache_mp_l0_l1_store_throughput_GB_per_second_sum{service_name=~\"$service_name\"}[1m])) / clamp_min(sum by (service_name) (rate(lmcache_mp_l0_l1_store_throughput_GB_per_second_count{service_name=~\"$service_name\"}[1m])), 1e-9)",
+              "instant": false,
+              "legendFormat": "{{service_name}} GPU→内存 GB/s",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "GPU → 内存吞吐",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "description": "内存层写入本地 SSD 的吞吐量，使用当前选择的时间桶计算。",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 12,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "decimals": 3,
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "GBs"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 42
+          },
+          "id": 720,
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull",
+                "mean"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "sum by (service_name) (rate(lmcache_mp_l2_store_throughput_GB_per_second_sum{service_name=~\"$service_name\"}[1m])) / clamp_min(sum by (service_name) (rate(lmcache_mp_l2_store_throughput_GB_per_second_count{service_name=~\"$service_name\"}[1m])), 1e-9)",
+              "instant": false,
+              "legendFormat": "{{service_name}} 内存→本地SSD GB/s",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "内存 → 本地SSD吞吐",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "description": "本地 SSD 读入内存层的吞吐量，使用当前选择的时间桶计算。",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 12,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "decimals": 3,
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "GBs"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 50
+          },
+          "id": 1103,
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull",
+                "mean"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "sum by (service_name) (rate(lmcache_mp_l2_load_throughput_GB_per_second_sum{service_name=~\"$service_name\"}[1m])) / clamp_min(sum by (service_name) (rate(lmcache_mp_l2_load_throughput_GB_per_second_count{service_name=~\"$service_name\"}[1m])), 1e-9)",
+              "instant": false,
+              "legendFormat": "{{service_name}} 本地SSD→内存 GB/s",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "本地SSD → 内存吞吐",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "description": "内存层传输到 GPU 显存的吞吐量，使用当前选择的时间桶计算。",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 12,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "decimals": 3,
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "GBs"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 50
+          },
+          "id": 1104,
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull",
+                "mean"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "sum by (service_name) (rate(lmcache_mp_l0_l1_load_throughput_GB_per_second_sum{service_name=~\"$service_name\"}[1m])) / clamp_min(sum by (service_name) (rate(lmcache_mp_l0_l1_load_throughput_GB_per_second_count{service_name=~\"$service_name\"}[1m])), 1e-9)",
+              "instant": false,
+              "legendFormat": "{{service_name}} 内存→GPU GB/s",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "内存 → GPU吞吐",
+          "type": "timeseries"
+        }
+      ],
+      "title": "5. 吞吐",
+      "type": "row"
+    },
+    {
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 89
+      },
+      "id": 500,
+      "panels": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "description": "写入内存层 LRU 的 chunk 数量，按当前时间桶聚合。",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 12,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "decimals": 0,
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 43
+          },
+          "id": 711,
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull",
+                "mean"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "sum by (service_name) (increase(lmcache_mp_l1_write_chunks_total{service_name=~\"$service_name\"}[1m]))",
+              "instant": false,
+              "legendFormat": "{{service_name}} 写入Chunk数",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "内存LRU写入Chunk数",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "description": "从内存层 LRU 读取的 chunk 数量，按当前时间桶聚合。",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 12,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "decimals": 0,
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 43
+          },
+          "id": 710,
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull",
+                "mean"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "sum by (service_name) (increase(lmcache_mp_l1_read_chunks_total{service_name=~\"$service_name\"}[1m]))",
+              "instant": false,
+              "legendFormat": "{{service_name}} 读取Chunk数",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "内存LRU读取Chunk数",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "description": "内存层 LRU 的当前使用率，接近上限时淘汰会更频繁。",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 12,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "decimals": 1,
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "percentunit"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 51
+          },
+          "id": 501,
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull",
+                "mean"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "sum by (service_name) (lmcache_mp_l1_usage_ratio{service_name=~\"$service_name\"})",
+              "legendFormat": "{{service_name}} 使用率",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "内存LRU使用率",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "description": "从内存层 LRU 淘汰的 chunk 数量，按当前时间桶聚合。",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 12,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "decimals": 0,
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 51
+          },
+          "id": 715,
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull",
+                "mean"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "sum by (service_name) (increase(lmcache_mp_l1_evicted_chunks_total{service_name=~\"$service_name\"}[1m]))",
+              "instant": false,
+              "legendFormat": "{{service_name}} 淘汰Chunk数",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "内存LRU淘汰Chunk数",
+          "type": "timeseries"
+        }
+      ],
+      "title": "6. 内存淘汰",
+      "type": "row"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 91
+      },
+      "id": 900,
+      "title": "7. chunk级指标",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cf5zm84e41v5se"
+      },
+      "description": "Lookup 计数使用结束事件 histogram 的 count；L2 命中率使用实际 prefetch hit 序列。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 12,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 0,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 92
+      },
+      "id": 903,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service_name) (increase(lmcache_mp_lookup_prefetch_duration_seconds_count{service_name=~\"$service_name\"}[1m]))",
+          "instant": false,
+          "legendFormat": "Lookup 总次数",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service_name) (increase(lmcache_mp_l2_prefetch_lookup_requests_total{service_name=~\"$service_name\"}[1m]))",
+          "instant": false,
+          "legendFormat": "L2 Lookup 次数",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service_name) (increase(lmcache_mp_l1_lookup_duration_seconds_count{service_name=~\"$service_name\"}[1m]))",
+          "instant": false,
+          "legendFormat": "L1 Lookup 次数",
+          "range": true,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service_name) (increase(lmcache_mp_l2_prefetch_lookup_objects_chunks_total{service_name=~\"$service_name\"}[1m]))",
+          "instant": false,
+          "legendFormat": "L2 查询 chunk",
+          "range": true,
+          "refId": "D"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service_name) (increase(lmcache_mp_l2_prefetch_hit_chunks_total{service_name=~\"$service_name\"}[1m]))",
+          "instant": false,
+          "legendFormat": "L2 命中 chunk",
+          "range": true,
+          "refId": "E"
+        }
+      ],
+      "title": "Lookup 次数、查询chunk与L2命中",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "cf5zm84e41v5se"
+      },
+      "description": "按当前时间桶展示 L1 与 L2 的 chunk 读取、写入、加载和淘汰计数。L2 淘汰为空表示窗口内没有事件。",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 12,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 0,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 92
+      },
+      "id": 904,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service_name) (increase(lmcache_mp_l1_read_chunks_total{service_name=~\"$service_name\"}[1m]))",
+          "instant": false,
+          "legendFormat": "L1 get/read",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service_name) (increase(lmcache_mp_l1_write_chunks_total{service_name=~\"$service_name\"}[1m]))",
+          "instant": false,
+          "legendFormat": "L1 write",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service_name) (increase(lmcache_mp_l1_evicted_chunks_total{service_name=~\"$service_name\"}[1m]))",
+          "instant": false,
+          "legendFormat": "L1 evicted",
+          "range": true,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service_name) (increase(lmcache_mp_l2_prefetch_load_submitted_objects_chunks_total{service_name=~\"$service_name\"}[1m]))",
+          "instant": false,
+          "legendFormat": "L2 get submitted",
+          "range": true,
+          "refId": "D"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service_name) (increase(lmcache_mp_l2_prefetch_load_completed_chunks_total{service_name=~\"$service_name\"}[1m]))",
+          "instant": false,
+          "legendFormat": "L2 get completed",
+          "range": true,
+          "refId": "E"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service_name) (increase(lmcache_mp_l2_store_submitted_objects_chunks_total{service_name=~\"$service_name\"}[1m]))",
+          "instant": false,
+          "legendFormat": "L2 store submitted",
+          "range": true,
+          "refId": "F"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service_name) (increase(lmcache_mp_l2_store_completed_objects_chunks_total{service_name=~\"$service_name\"}[1m]))",
+          "instant": false,
+          "legendFormat": "L2 store completed",
+          "range": true,
+          "refId": "G"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service_name) (increase(lmcache_mp_l2_evicted_chunks_total{service_name=~\"$service_name\"}[1m]))",
+          "instant": false,
+          "legendFormat": "L2 evicted",
+          "range": true,
+          "refId": "H"
+        }
+      ],
+      "title": "Get/Set/Eviction chunk数",
+      "type": "timeseries"
+    }
+  ],
+  "preload": false,
+  "refresh": "10s",
+  "schemaVersion": 42,
+  "tags": [
+    "vllm",
+    "lmcache",
+    "ttft"
+  ],
+  "templating": {
+    "list": [
+      {
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "includeAll": true,
+        "label": "服务实例",
+        "multi": true,
+        "name": "service_name",
+        "options": [
+          {
+            "selected": true,
+            "text": "All",
+            "value": "$__all"
+          },
+          {
+            "selected": false,
+            "text": "vllm80",
+            "value": "vllm80"
+          },
+          {
+            "selected": false,
+            "text": "vllm81",
+            "value": "vllm81"
+          },
+          {
+            "selected": false,
+            "text": "vllm85",
+            "value": "vllm85"
+          }
+        ],
+        "query": "vllm80,vllm81,vllm85",
+        "refresh": 0,
+        "regex": "",
+        "sort": 1,
+        "type": "custom"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "Asia/Shanghai",
+  "title": "TTFT Analysis",
+  "uid": "ttft-analysis",
+  "version": 64,
+  "weekStart": ""
+}

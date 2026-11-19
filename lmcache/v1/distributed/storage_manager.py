@@ -439,9 +439,31 @@ class StorageManager:
         # NOTE: now we only have L1, so the prefetch is essentially checking how many
         # objects are already in L1, and adding read locks to them.
 
-        l1_read_result = self._l1_manager.reserve_read(
-            keys, extra_count=spec.extra_count
+        self._event_bus.publish(
+            Event(
+                event_type=EventType.L1_LOOKUP_START,
+                session_id=external_request_id,
+                metadata={
+                    "request_id": external_request_id,
+                    "key_count": len(keys),
+                },
+            )
         )
+        try:
+            l1_read_result = self._l1_manager.reserve_read(
+                keys, extra_count=spec.extra_count
+            )
+        finally:
+            self._event_bus.publish(
+                Event(
+                    event_type=EventType.L1_LOOKUP_END,
+                    session_id=external_request_id,
+                    metadata={
+                        "request_id": external_request_id,
+                        "key_count": len(keys),
+                    },
+                )
+            )
 
         if spec.policy is TrimPolicy.SPARSE:
             # SPARSE: retain a read lock on every L1 hit (not just the leading

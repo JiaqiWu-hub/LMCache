@@ -36,6 +36,8 @@ from lmcache.v1.distributed.l2_adapters.base import (
     L2TaskId,
 )
 from lmcache.v1.memory_management import MemoryObj
+from lmcache.v1.mp_observability.event import Event, EventType
+from lmcache.v1.mp_observability.event_bus import get_event_bus
 from lmcache.v1.platform import create_event_notifier
 
 logger = init_logger(__name__)
@@ -107,13 +109,16 @@ class NativeConnectorL2Adapter(L2AdapterInterface):
         native_client: Any,
         max_capacity_gb: float = 0,
         type_name: str = "",
+        metric_name: str = "",
         extra_status: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(max_capacity_bytes=int(max_capacity_gb * (1024**3)))
         self._client = native_client
         self._client_fd: int = int(native_client.event_fd())
         self._type_name: str = type_name or type(native_client).__name__
+        self._metric_name: str = metric_name or self._type_name
         self._extra_status: dict[str, Any] = dict(extra_status or {})
+        self._event_bus = get_event_bus()
 
         # 3 distinct cross-platform notifiers for the L2 adapter
         # interface
@@ -140,6 +145,9 @@ class NativeConnectorL2Adapter(L2AdapterInterface):
 
         # Delete capability detection
         self._has_delete = callable(getattr(native_client, "submit_batch_delete", None))
+        self._has_io_samples = callable(
+            getattr(native_client, "drain_io_samples", None)
+        )
 
         # Pending delete events for synchronous delete() calls
         self._pending_delete_events: dict[L2TaskId, threading.Event] = {}
@@ -399,6 +407,7 @@ class NativeConnectorL2Adapter(L2AdapterInterface):
 
         while not self._stop.is_set():
             events = poller.poll(500)
+            self._publish_io_samples()
             if not events:
                 continue
 
@@ -534,3 +543,27 @@ class NativeConnectorL2Adapter(L2AdapterInterface):
             # returning and the notify running.
             for evt in delete_done_events:
                 evt.set()
+
+    def _publish_io_samples(self) -> None:
+        """Drain native worker I/O samples and publish one aggregate event."""
+        if not self._has_io_samples:
+            return
+
+        try:
+            samples = self._client.drain_io_samples()
+        except Exception:
+            logger.exception("drain_io_samples failed")
+            return
+
+        if not samples:
+            return
+
+        self._event_bus.publish(
+            Event(
+                event_type=EventType.L2_IO_SAMPLED,
+                metadata={
+                    "l2_name": self._metric_name,
+                    "samples": samples,
+                },
+            )
+        )

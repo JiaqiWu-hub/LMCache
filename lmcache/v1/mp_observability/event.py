@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 # Standard
+import itertools
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
@@ -27,6 +28,12 @@ class EventType(Enum):
     L1_KEYS_EVICTED = "l1.keys.evicted"
     L1_KEYS_ACCESSED = "l1.keys.accessed"
     L1_EVICTION_LOOP_TICK = "l1.eviction.loop_tick"
+    # L1 lookup / allocation phase timing. Published by the storage manager
+    # and L2 prefetch controller around the corresponding synchronous work.
+    L1_LOOKUP_START = "l1.lookup.start"
+    L1_LOOKUP_END = "l1.lookup.end"
+    L1_ALLOCATE_START = "l1.allocate.start"
+    L1_ALLOCATE_END = "l1.allocate.end"
 
     # L1 failure events (LM-291 health monitoring)
     L1_ALLOCATION_FAILED = "l1.allocation.failed"
@@ -47,6 +54,10 @@ class EventType(Enum):
     L2_PREFETCH_LOOKUP_COMPLETED = "l2.prefetch.lookup.completed"
     L2_PREFETCH_LOAD_SUBMITTED = "l2.prefetch.load.submitted"
     L2_PREFETCH_LOAD_COMPLETED = "l2.prefetch.load.completed"
+    # Narrower timing pair than L2_PREFETCH_LOOKUP_*: spans only adapter
+    # lookup-and-lock submission through the last lookup result.
+    L2_LOOKUP_START = "l2.lookup.start"
+    L2_LOOKUP_END = "l2.lookup.end"
     # Per-adapter load task events, for throughput correlation.  Fire once
     # per (request_id, adapter_index) pair, unlike the request-level
     # L2_PREFETCH_LOAD_* events above which aggregate across adapters.
@@ -60,6 +71,9 @@ class EventType(Enum):
     L2_KEYS_STORED = "l2.keys.stored"
     L2_KEYS_ACCESSED = "l2.keys.accessed"
     L2_KEYS_DELETED = "l2.keys.deleted"
+    # One logical object I/O observed by a native L2 connector worker.
+    # Metadata: samples (list of (is_write, io_size, queue_wait, service, ok)).
+    L2_IO_SAMPLED = "l2.io.sampled"
 
     # L2 failure events (LM-291 health monitoring)
     L2_PREFETCH_FAILED = "l2.prefetch.failed"
@@ -171,3 +185,20 @@ class Event:
     timestamp: float = 0.0
     metadata: dict[str, Any] = field(default_factory=dict)
     session_id: str = ""
+
+
+# A request can issue several store/retrieve operations. ``session_id`` alone
+# therefore cannot identify one transfer; these keys do.
+_TRANSFER_SEQ = itertools.count()
+
+
+def next_transfer_key(request_id: str) -> str:
+    """Mint a process-unique key for one store or retrieve operation.
+
+    Args:
+        request_id: The request the operation serves.
+
+    Returns:
+        A readable transfer key such as ``"req-7#42"``.
+    """
+    return f"{request_id}#{next(_TRANSFER_SEQ)}"

@@ -2,6 +2,7 @@
 #pragma once
 
 #include <atomic>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -40,6 +41,10 @@ beforehand.
 struct BatchState {
   std::atomic<uint32_t> remaining_tiles{0};
   std::atomic<bool> any_failed{false};
+
+  // Timestamp captured at batch submission. Per-object I/O samples use this
+  // to report queue wait without changing batch scheduling.
+  std::chrono::steady_clock::time_point submitted_at;
 
   std::mutex err_mu;
   std::string first_error;
@@ -98,6 +103,16 @@ struct Completion {
   std::vector<uint8_t> result_bytes;
 
   std::string error;
+};
+
+// One logical object I/O observed by a connector worker. The sample carries
+// no key or path, so exporting it cannot create request-scale cardinality.
+struct IOSample {
+  bool is_write = false;
+  size_t io_size = 0;
+  double queue_wait_seconds = 0;
+  double service_seconds = 0;
+  bool ok = true;
 };
 
 }  // namespace connector

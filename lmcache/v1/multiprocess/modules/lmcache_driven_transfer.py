@@ -30,7 +30,7 @@ from lmcache.v1.gpu_connector.gpu_ops import (
 from lmcache.v1.gpu_connector.utils import LayoutHints
 from lmcache.v1.memory_allocators.lazy_memory_allocator import LazyMemoryAllocator
 from lmcache.v1.memory_management import GDSMemoryObject, MemoryObj
-from lmcache.v1.mp_observability.event import Event, EventType
+from lmcache.v1.mp_observability.event import Event, EventType, next_transfer_key
 from lmcache.v1.multiprocess.custom_types import (
     IPCCacheServerKey,
     KVCache,
@@ -1053,11 +1053,15 @@ class LMCacheDrivenTransferModule(InstanceLivenessTarget):
             # CPU-synchronous sentinel: a GPU store is about to be enqueued.
             # Must be published via publish() (not publish_on_stream) so the
             # drain thread sees it before MP_REQUEST_END can race MP_STORE_END.
+            transfer_key = next_transfer_key(key.request_id)
             self._ctx.event_bus.publish(
                 Event(
                     event_type=EventType.MP_STORE_SUBMITTED,
                     session_id=key.request_id,
-                    metadata={"device": str(cache_context.device)},
+                    metadata={
+                        "device": str(cache_context.device),
+                        "transfer_key": transfer_key,
+                    },
                 )
             )
 
@@ -1079,6 +1083,7 @@ class LMCacheDrivenTransferModule(InstanceLivenessTarget):
                         "device": str(cache_context.device),
                         "engine_id": instance_id,
                         "model_name": model_name,
+                        "transfer_key": transfer_key,
                     },
                 ),
             )
@@ -1150,6 +1155,7 @@ class LMCacheDrivenTransferModule(InstanceLivenessTarget):
                             "model_name": model_name,
                             "total_bytes": total_bytes,
                             "num_tokens": num_tokens,
+                            "transfer_key": transfer_key,
                         },
                     ),
                 )
@@ -1218,11 +1224,15 @@ class LMCacheDrivenTransferModule(InstanceLivenessTarget):
         # CPU-synchronous sentinel: a GPU retrieve is about to be enqueued.
         # Must be published via publish() (not publish_on_stream) so the
         # drain thread sees it before MP_REQUEST_END can race MP_RETRIEVE_END.
+        transfer_key = next_transfer_key(key.request_id)
         self._ctx.event_bus.publish(
             Event(
                 event_type=EventType.MP_RETRIEVE_SUBMITTED,
                 session_id=key.request_id,
-                metadata={"device": str(cache_context.device)},
+                metadata={
+                    "device": str(cache_context.device),
+                    "transfer_key": transfer_key,
+                },
             )
         )
 
@@ -1235,6 +1245,7 @@ class LMCacheDrivenTransferModule(InstanceLivenessTarget):
                     "device": str(cache_context.device),
                     "engine_id": instance_id,
                     "model_name": model_name,
+                    "transfer_key": transfer_key,
                 },
             ),
         )
@@ -1341,6 +1352,7 @@ class LMCacheDrivenTransferModule(InstanceLivenessTarget):
                             "cache_salt": key.cache_salt,
                             "total_bytes": total_bytes,
                             "num_tokens": num_tokens,
+                            "transfer_key": transfer_key,
                         },
                     ),
                 )

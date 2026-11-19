@@ -67,6 +67,22 @@ class L2ThroughputSubscriber(EventSubscriber):
             ),
             unit="GB/s",
         )
+        self._store_duration_hist = meter.create_histogram(
+            "lmcache_mp.l2_store_duration",
+            description=(
+                "Histogram of L1->L2 store duration in seconds, including "
+                "adapter queue and network/disk I/O."
+            ),
+            unit="s",
+        )
+        self._load_duration_hist = meter.create_histogram(
+            "lmcache_mp.l2_load_duration",
+            description=(
+                "Histogram of L2->L1 load duration in seconds per adapter, "
+                "including adapter queue and network/disk I/O."
+            ),
+            unit="s",
+        )
 
     # -- EventSubscriber interface -----------------------------------------
 
@@ -99,6 +115,7 @@ class L2ThroughputSubscriber(EventSubscriber):
             correlation_key=key,
             pending=self._pending_store,
             hist=self._store_hist,
+            duration_hist=self._store_duration_hist,
             real_bytes_transferred=bytes_transferred,
         )
 
@@ -119,6 +136,7 @@ class L2ThroughputSubscriber(EventSubscriber):
             correlation_key=key,
             pending=self._pending_load,
             hist=self._load_hist,
+            duration_hist=self._load_duration_hist,
         )
 
     # -- Correlation-key helpers ------------------------------------------
@@ -155,6 +173,7 @@ class L2ThroughputSubscriber(EventSubscriber):
         correlation_key: tuple[int, int],
         pending: dict[tuple[int, int], tuple[float, int]],
         hist: Any,
+        duration_hist: Any,
         real_bytes_transferred: int | None = None,
     ) -> None:
         """
@@ -176,9 +195,6 @@ class L2ThroughputSubscriber(EventSubscriber):
         effective_bytes = (
             total_bytes if real_bytes_transferred is None else real_bytes_transferred
         )
-        if effective_bytes <= 0:
-            return
-
         dt = event.timestamp - t_start
         if dt <= 0:
             return
@@ -187,5 +203,10 @@ class L2ThroughputSubscriber(EventSubscriber):
         attrs: dict[str, Any] = {}
         if l2_name is not None:
             attrs["l2_name"] = str(l2_name)
+
+        duration_hist.record(dt, attributes=attrs)
+
+        if effective_bytes <= 0:
+            return
 
         hist.record(effective_bytes / dt / 1e9, attributes=attrs)

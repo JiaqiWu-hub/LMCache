@@ -30,11 +30,15 @@ from lmcache.v1.mp_observability.subscribers.metrics.l2 import L2MetricsSubscrib
 from lmcache.v1.mp_observability.subscribers.metrics.l2_failures import (
     L2FailureMetricsSubscriber,
 )
+from lmcache.v1.mp_observability.subscribers.metrics.l2_io import L2IOSubscriber
 from lmcache.v1.mp_observability.subscribers.metrics.l2_throughput import (
     L2ThroughputSubscriber,
 )
 from lmcache.v1.mp_observability.subscribers.metrics.lookup import (
     LookupMetricsSubscriber,
+)
+from lmcache.v1.mp_observability.subscribers.metrics.prefetch_latency import (
+    PrefetchLatencySubscriber,
 )
 from lmcache.v1.mp_observability.subscribers.metrics.sm_lifecycle import (
     SMLifecycleSubscriber,
@@ -54,9 +58,11 @@ __all__ = [
     "L1LifecycleSubscriber",
     "L1MetricsSubscriber",
     "L2FailureMetricsSubscriber",
+    "L2IOSubscriber",
     "L2MetricsSubscriber",
     "L2ThroughputSubscriber",
     "LookupMetricsSubscriber",
+    "PrefetchLatencySubscriber",
     "SMLifecycleSubscriber",
     "TimeoutMetricsSubscriber",
 ]

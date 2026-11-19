@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cerrno>
+#include <chrono>
 #include <condition_variable>
 #include <cstdio>
 #include <memory>
@@ -399,6 +400,7 @@ class ConnectorBase : public IStorageConnector {
     auto batch_state = std::make_shared<BatchState>();
     batch_state->remaining_tiles.store(num_tiles, std::memory_order_relaxed);
     batch_state->batch_op = op;
+    batch_state->submitted_at = std::chrono::steady_clock::now();
 
     return {batch_future_id, batch_state, num_tiles, tile_size};
   }

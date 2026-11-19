@@ -162,6 +162,7 @@ def _create_fs_native_l2_adapter(
         native_client,
         max_capacity_gb=config.max_capacity_gb,
         type_name="FSNativeL2Adapter",
+        metric_name="fs_native",
         extra_status={
             "base_path": config.base_path,
             "use_odirect": config.use_odirect,

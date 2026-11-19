@@ -26,6 +26,72 @@ from lmcache.logging import init_logger
 
 logger = init_logger(__name__)
 
+_LATENCY_BUCKETS_S = (
+    0.0001,
+    0.00025,
+    0.0005,
+    0.001,
+    0.0025,
+    0.005,
+    0.01,
+    0.025,
+    0.05,
+    0.1,
+    0.25,
+    0.5,
+    1.0,
+    2.5,
+    5.0,
+    10.0,
+    30.0,
+)
+_LATENCY_INSTRUMENTS = (
+    "lmcache_mp.lookup_prefetch_duration",
+    "lmcache_mp.l1_lookup_duration",
+    "lmcache_mp.l2_lookup_duration",
+    "lmcache_mp.l1_allocate_duration",
+    "lmcache_mp.l2_load_duration",
+    "lmcache_mp.l0_l1_load_duration",
+    "lmcache_mp.l0_l1_store_duration",
+    "lmcache_mp.retrieve_total_duration",
+    "lmcache_mp.store_total_duration",
+    "lmcache_mp.l2_store_duration",
+    "lmcache_mp.l2_io_queue_wait_duration",
+    "lmcache_mp.l2_io_service_duration",
+)
+_SIZE_BUCKETS_BYTES = (
+    4 * 1024,
+    16 * 1024,
+    64 * 1024,
+    256 * 1024,
+    1024 * 1024,
+    4 * 1024 * 1024,
+    16 * 1024 * 1024,
+    64 * 1024 * 1024,
+    256 * 1024 * 1024,
+    1024 * 1024 * 1024,
+)
+_SIZE_INSTRUMENTS = ("lmcache_mp.l2_io_size",)
+
+
+def _metric_views() -> list:
+    """Return explicit buckets for LMCache latency and I/O size histograms."""
+    # Third Party
+    from opentelemetry.sdk.metrics.view import (
+        ExplicitBucketHistogramAggregation,
+        View,
+    )
+
+    latency_aggregation = ExplicitBucketHistogramAggregation(_LATENCY_BUCKETS_S)
+    size_aggregation = ExplicitBucketHistogramAggregation(_SIZE_BUCKETS_BYTES)
+    return [
+        View(instrument_name=name, aggregation=latency_aggregation)
+        for name in _LATENCY_INSTRUMENTS
+    ] + [
+        View(instrument_name=name, aggregation=size_aggregation)
+        for name in _SIZE_INSTRUMENTS
+    ]
+
 
 def _build_resource(resource_attributes: dict[str, str] | None) -> "Resource":
     """Build an OTel ``Resource`` from the given attribute dict.
@@ -83,7 +149,9 @@ def init_otel_metrics(
 
         exporter = OTLPMetricExporter(endpoint=otlp_endpoint, insecure=True)
         reader = PeriodicExportingMetricReader(exporter, export_interval_millis=10000)
-        provider = MeterProvider(metric_readers=[reader], resource=resource)
+        provider = MeterProvider(
+            metric_readers=[reader], resource=resource, views=_metric_views()
+        )
         metrics.set_meter_provider(provider)
         logger.info(
             "OTel MeterProvider initialised with OTLP exporter (%s), resource=%s",
@@ -100,7 +168,9 @@ def init_otel_metrics(
             prometheus_port = 9090
 
         reader = PrometheusMetricReader()
-        provider = MeterProvider(metric_readers=[reader], resource=resource)
+        provider = MeterProvider(
+            metric_readers=[reader], resource=resource, views=_metric_views()
+        )
         metrics.set_meter_provider(provider)
         if start_http_server:
             prometheus_client.start_http_server(prometheus_port)

@@ -908,6 +908,16 @@ class PrefetchController(StorageControllerInterface):
             self._finish_request(request)
             return
 
+        self._event_bus.publish(
+            Event(
+                event_type=EventType.L2_LOOKUP_START,
+                metadata={
+                    "request_id": request_id,
+                    "key_count": len(spec.keys),
+                    "adapter_count": len(routing_adapters),
+                },
+            )
+        )
         for adapter_id, adapter in routing_adapters.items():
             task_id = adapter.submit_lookup_and_lock_task(
                 spec.keys, spec.group_layout_descs
@@ -1014,7 +1024,29 @@ class PrefetchController(StorageControllerInterface):
         keys_to_reserve = merge_bitmaps(trimmed_plan.values(), num_keys).gather(
             request.keys
         )
-        reserved = self._reserve_load_buffers(request, keys_to_reserve)
+        self._event_bus.publish(
+            Event(
+                event_type=EventType.L1_ALLOCATE_START,
+                metadata={
+                    "request_id": request.request_id,
+                    "key_count": len(keys_to_reserve),
+                },
+            )
+        )
+        reserved: set[ObjectKey] = set()
+        try:
+            reserved = self._reserve_load_buffers(request, keys_to_reserve)
+        finally:
+            self._event_bus.publish(
+                Event(
+                    event_type=EventType.L1_ALLOCATE_END,
+                    metadata={
+                        "request_id": request.request_id,
+                        "key_count": len(keys_to_reserve),
+                        "reserved_count": len(reserved),
+                    },
+                )
+            )
         if len(reserved) < len(keys_to_reserve):
             self._finish_request(request)
             return
@@ -1227,6 +1259,15 @@ class PrefetchController(StorageControllerInterface):
         if request.phase == PrefetchPhase.LOOKUP:
             self._poll_lookup_results(request, phase_adapters)
             if request.all_lookups_done():
+                self._event_bus.publish(
+                    Event(
+                        event_type=EventType.L2_LOOKUP_END,
+                        metadata={
+                            "request_id": request.request_id,
+                            "adapter_count": len(request.lookup_results),
+                        },
+                    )
+                )
                 self._transition_to_load_phase(request)
         elif request.phase == PrefetchPhase.PLAN_AND_LOAD:
             self._poll_load_results(request, phase_adapters)
