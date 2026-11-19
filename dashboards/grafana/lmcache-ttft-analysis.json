@@ -1094,7 +1094,7 @@
               "expr": "sum by (service_name, device) (rate(lmcache_mp_l0_l1_load_duration_seconds_sum{service_name=~\"$service_name\"}[1m]))\n/\nclamp_min(sum by (service_name, device) (rate(lmcache_mp_l0_l1_load_duration_seconds_count{service_name=~\"$service_name\"}[1m])), 1e-9)",
               "hide": false,
               "instant": false,
-              "legendFormat": "{{service_name}} H2D耗时",
+              "legendFormat": "{{service_name}} 内存 to GPU 平均值",
               "range": true,
               "refId": "B"
             }
@@ -1207,7 +1207,7 @@
               "expr": "histogram_quantile(0.99, sum by (le, service_name, device) (rate(lmcache_mp_l0_l1_load_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
               "hide": false,
               "instant": false,
-              "legendFormat": "{{service_name}} H2D耗时 P99",
+              "legendFormat": "{{service_name}} 内存 to GPU P99",
               "range": true,
               "refId": "B"
             }
@@ -1320,7 +1320,7 @@
               "expr": "histogram_quantile(0.9999, sum by (le, service_name, device) (rate(lmcache_mp_l0_l1_load_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
               "hide": false,
               "instant": false,
-              "legendFormat": "{{service_name}} H2D耗时 P9999",
+              "legendFormat": "{{service_name}} 内存 to GPU P9999",
               "range": true,
               "refId": "B"
             }
@@ -3948,6 +3948,6 @@
   "timezone": "Asia/Shanghai",
   "title": "TTFT Analysis",
   "uid": "ttft-analysis",
-  "version": 74,
+  "version": 75,
   "weekStart": ""
 }
