@@ -2366,6 +2366,117 @@
           ],
           "title": "prefetch带宽",
           "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "description": "从 L2 load task 提交到 chunk 数据加载完成并可用的延迟，包含 adapter 排队、网络和 SSD I/O；当前指标按 request 与 adapter 组合统计。",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "耗时",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 12,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "decimals": 3,
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 98
+          },
+          "id": 1203,
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull",
+                "mean"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "sum by (service_name) (rate(lmcache_mp_l2_load_duration_seconds_sum{service_name=~\"$service_name\",l2_name=\"fs_native\"}[1m])) / clamp_min(sum by (service_name) (rate(lmcache_mp_l2_load_duration_seconds_count{service_name=~\"$service_name\",l2_name=\"fs_native\"}[1m])), 1e-9)",
+              "instant": false,
+              "legendFormat": "{{service_name}} 平均值",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.99, sum by (le, service_name) (rate(lmcache_mp_l2_load_duration_seconds_bucket{service_name=~\"$service_name\",l2_name=\"fs_native\"}[1m])))",
+              "instant": false,
+              "legendFormat": "{{service_name}} P99",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "prefetch数据就绪延迟",
+          "type": "timeseries"
         }
       ],
       "title": "6. 异步预取",
@@ -3182,6 +3293,6 @@
   "timezone": "Asia/Shanghai",
   "title": "LMCache_TTFT_Analysis",
   "uid": "ttft-analysis",
-  "version": 92,
+  "version": 93,
   "weekStart": ""
 }
