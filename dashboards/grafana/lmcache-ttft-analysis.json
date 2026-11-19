@@ -592,7 +592,7 @@
               "expr": "sum by (service_name) (rate(lmcache_mp_l1_allocate_duration_seconds_sum{service_name=~\"$service_name\"}[1m]))\n/\nclamp_min(sum by (service_name) (rate(lmcache_mp_l1_allocate_duration_seconds_count{service_name=~\"$service_name\"}[1m])), 1e-9)",
               "hide": false,
               "instant": false,
-              "legendFormat": "{{service_name}} 内存层 Allocate 平均值",
+              "legendFormat": "{{service_name}} prefetch预处理 平均值",
               "range": true,
               "refId": "D"
             },
@@ -605,7 +605,7 @@
               "expr": "sum by (service_name, l2_name) (rate(lmcache_mp_l2_load_duration_seconds_sum{service_name=~\"$service_name\"}[1m]))\n/\nclamp_min(sum by (service_name, l2_name) (rate(lmcache_mp_l2_load_duration_seconds_count{service_name=~\"$service_name\"}[1m])), 1e-9)",
               "hide": false,
               "instant": false,
-              "legendFormat": "{{service_name}} 本地SSD→内存层 Prefetch（均值）",
+              "legendFormat": "{{service_name}} prefetch加载数据 平均值",
               "range": true,
               "refId": "E"
             },
@@ -767,7 +767,7 @@
               "expr": "histogram_quantile(0.99, sum by (le, service_name) (rate(lmcache_mp_l1_allocate_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
               "hide": false,
               "instant": false,
-              "legendFormat": "{{service_name}} 内存层 Allocate P99",
+              "legendFormat": "{{service_name}} prefetch预处理 P99",
               "range": true,
               "refId": "D"
             },
@@ -780,7 +780,7 @@
               "expr": "histogram_quantile(0.99, sum by (le, service_name, l2_name) (rate(lmcache_mp_l2_load_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
               "hide": false,
               "instant": false,
-              "legendFormat": "{{service_name}} 本地SSD→内存层 Prefetch（P99）",
+              "legendFormat": "{{service_name}} prefetch加载数据 P99",
               "range": true,
               "refId": "E"
             },
@@ -942,7 +942,7 @@
               "expr": "histogram_quantile(0.9999, sum by (le, service_name) (rate(lmcache_mp_l1_allocate_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
               "hide": false,
               "instant": false,
-              "legendFormat": "{{service_name}} 内存层 Allocate P9999",
+              "legendFormat": "{{service_name}} prefetch预处理 P9999",
               "range": true,
               "refId": "D"
             },
@@ -955,7 +955,7 @@
               "expr": "histogram_quantile(0.9999, sum by (le, service_name, l2_name) (rate(lmcache_mp_l2_load_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
               "hide": false,
               "instant": false,
-              "legendFormat": "{{service_name}} 本地SSD→内存层 Prefetch（P9999）",
+              "legendFormat": "{{service_name}} prefetch加载数据 P9999",
               "range": true,
               "refId": "E"
             },
@@ -3948,6 +3948,6 @@
   "timezone": "Asia/Shanghai",
   "title": "TTFT Analysis",
   "uid": "ttft-analysis",
-  "version": 79,
+  "version": 80,
   "weekStart": ""
 }
