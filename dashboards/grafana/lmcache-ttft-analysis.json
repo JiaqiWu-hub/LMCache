@@ -1938,7 +1938,7 @@
             "type": "prometheus",
             "uid": "cf5zm84e41v5se"
           },
-          "description": "展示本地 SSD 成功读写操作的每秒次数，使用一分钟窗口计算。",
+          "description": "展示 GPU 与内存之间的 transfer IOPS，以及本地 SSD 成功读写操作的每秒次数，使用一分钟窗口计算。",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2039,6 +2039,30 @@
               "legendFormat": "{{service_name}} 内存→本地SSD IOPS",
               "range": true,
               "refId": "B"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "sum by (service_name) (rate(lmcache_mp_l0_l1_store_duration_seconds_count{service_name=~\"$service_name\"}[1m]))",
+              "instant": false,
+              "legendFormat": "{{service_name}} GPU显存→内存 transfer IOPS",
+              "range": true,
+              "refId": "C"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "sum by (service_name) (rate(lmcache_mp_l0_l1_load_duration_seconds_count{service_name=~\"$service_name\"}[1m]))",
+              "instant": false,
+              "legendFormat": "{{service_name}} 内存→GPU显存 transfer IOPS",
+              "range": true,
+              "refId": "D"
             }
           ],
           "title": "各缓存层IOPS",
