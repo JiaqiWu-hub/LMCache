@@ -2622,7 +2622,7 @@
             "type": "prometheus",
             "uid": "cf5zm84e41v5se"
           },
-          "description": "写入内存层 LRU 的 chunk 数量，按当前时间桶聚合。",
+          "description": "每秒写入内存层 LRU 的 chunk 数，使用一分钟 rate 窗口。",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2672,7 +2672,7 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "suffix:chunk/s"
             },
             "overrides": []
           },
@@ -2706,14 +2706,14 @@
                 "uid": "cf5zm84e41v5se"
               },
               "editorMode": "code",
-              "expr": "sum by (service_name) (increase(lmcache_mp_l1_write_chunks_total{service_name=~\"$service_name\"}[1m]))",
+              "expr": "sum by (service_name) (rate(lmcache_mp_l1_write_chunks_total{service_name=~\"$service_name\"}[1m]))",
               "instant": false,
-              "legendFormat": "{{service_name}} 写入Chunk数",
+              "legendFormat": "{{service_name}} 写入速率 (chunk/s)",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "内存LRU写入Chunk数",
+          "title": "内存LRU写入Chunk速率",
           "type": "timeseries"
         },
         {
@@ -2721,7 +2721,7 @@
             "type": "prometheus",
             "uid": "cf5zm84e41v5se"
           },
-          "description": "从内存层 LRU 读取的 chunk 数量，按当前时间桶聚合。",
+          "description": "每秒从内存层 LRU 读取的 chunk 数，使用一分钟 rate 窗口。",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2771,7 +2771,7 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "suffix:chunk/s"
             },
             "overrides": []
           },
@@ -2805,14 +2805,14 @@
                 "uid": "cf5zm84e41v5se"
               },
               "editorMode": "code",
-              "expr": "sum by (service_name) (increase(lmcache_mp_l1_read_chunks_total{service_name=~\"$service_name\"}[1m]))",
+              "expr": "sum by (service_name) (rate(lmcache_mp_l1_read_chunks_total{service_name=~\"$service_name\"}[1m]))",
               "instant": false,
-              "legendFormat": "{{service_name}} 读取Chunk数",
+              "legendFormat": "{{service_name}} 读取速率 (chunk/s)",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "内存LRU读取Chunk数",
+          "title": "内存LRU读取Chunk速率",
           "type": "timeseries"
         },
         {
@@ -2918,7 +2918,7 @@
             "type": "prometheus",
             "uid": "cf5zm84e41v5se"
           },
-          "description": "从内存层 LRU 淘汰的 chunk 数量，按当前时间桶聚合。",
+          "description": "每秒从内存层 LRU 淘汰的 chunk 数，使用一分钟 rate 窗口。",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2968,7 +2968,7 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "suffix:chunk/s"
             },
             "overrides": []
           },
@@ -3002,14 +3002,14 @@
                 "uid": "cf5zm84e41v5se"
               },
               "editorMode": "code",
-              "expr": "sum by (service_name) (increase(lmcache_mp_l1_evicted_chunks_total{service_name=~\"$service_name\"}[1m]))",
+              "expr": "sum by (service_name) (rate(lmcache_mp_l1_evicted_chunks_total{service_name=~\"$service_name\"}[1m]))",
               "instant": false,
-              "legendFormat": "{{service_name}} 淘汰Chunk数",
+              "legendFormat": "{{service_name}} 淘汰速率 (chunk/s)",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "内存LRU淘汰Chunk数",
+          "title": "内存LRU淘汰Chunk速率",
           "type": "timeseries"
         }
       ],
@@ -3418,6 +3418,6 @@
   "timezone": "Asia/Shanghai",
   "title": "LMCache_TTFT_Analysis",
   "uid": "ttft-analysis",
-  "version": 95,
+  "version": 96,
   "weekStart": ""
 }
