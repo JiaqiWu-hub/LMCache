@@ -553,7 +553,7 @@
               "expr": "sum by (service_name) (rate(lmcache_mp_lookup_prefetch_duration_seconds_sum{service_name=~\"$service_name\"}[1m]))\n/\nclamp_min(sum by (service_name) (rate(lmcache_mp_lookup_prefetch_duration_seconds_count{service_name=~\"$service_name\"}[1m])), 1e-9)",
               "hide": false,
               "instant": false,
-              "legendFormat": "{{service_name}} Lookup/Prefetch 平均值",
+              "legendFormat": "{{service_name}} Lookup Total（包含 Prefetch） 平均值",
               "range": true,
               "refId": "A"
             },
@@ -610,7 +610,7 @@
               "refId": "E"
             }
           ],
-          "title": "Lookup / Prefetch 分段耗时（平均值）",
+          "title": "Lookup Total（包含 Prefetch） 分段耗时（平均值）",
           "type": "timeseries"
         },
         {
@@ -702,7 +702,7 @@
               "expr": "histogram_quantile(0.99, sum by (le, service_name) (rate(lmcache_mp_lookup_prefetch_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
               "hide": false,
               "instant": false,
-              "legendFormat": "{{service_name}} Lookup/Prefetch P99",
+              "legendFormat": "{{service_name}} Lookup Total（包含 Prefetch） P99",
               "range": true,
               "refId": "A"
             },
@@ -759,7 +759,7 @@
               "refId": "E"
             }
           ],
-          "title": "Lookup / Prefetch 分段耗时（P99）",
+          "title": "Lookup Total（包含 Prefetch） 分段耗时（P99）",
           "type": "timeseries"
         },
         {
@@ -851,7 +851,7 @@
               "expr": "histogram_quantile(0.9999, sum by (le, service_name) (rate(lmcache_mp_lookup_prefetch_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
               "hide": false,
               "instant": false,
-              "legendFormat": "{{service_name}} Lookup/Prefetch P9999",
+              "legendFormat": "{{service_name}} Lookup Total（包含 Prefetch） P9999",
               "range": true,
               "refId": "A"
             },
@@ -908,7 +908,7 @@
               "refId": "E"
             }
           ],
-          "title": "Lookup / Prefetch 分段耗时（P9999）",
+          "title": "Lookup Total（包含 Prefetch） 分段耗时（P9999）",
           "type": "timeseries"
         },
         {
@@ -3792,6 +3792,6 @@
   "timezone": "Asia/Shanghai",
   "title": "TTFT Analysis",
   "uid": "ttft-analysis",
-  "version": 66,
+  "version": 67,
   "weekStart": ""
 }
