@@ -2167,6 +2167,119 @@
         "x": 0,
         "y": 89
       },
+      "id": 1200,
+      "panels": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "description": "单位时间内成功完成 L2 到 L1 预取加载、数据已就绪的 chunk 数量。",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "chunk/s",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 12,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "decimals": 3,
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "ops"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 90
+          },
+          "id": 1201,
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull",
+                "mean"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "sum by (service_name) (rate(lmcache_mp_l2_prefetch_load_completed_chunks_total{service_name=~\"$service_name\"}[1m]))",
+              "instant": false,
+              "legendFormat": "{{service_name}} prefetch完成速率",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "prefetch完成速率",
+          "type": "timeseries"
+        }
+      ],
+      "title": "6. 异步预取",
+      "type": "row"
+    },
+    {
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 90
+      },
       "id": 500,
       "panels": [
         {
@@ -2565,7 +2678,7 @@
           "type": "timeseries"
         }
       ],
-      "title": "6. 内存淘汰",
+      "title": "7. 内存淘汰",
       "type": "row"
     },
     {
@@ -2574,10 +2687,10 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 91
+        "y": 92
       },
       "id": 900,
-      "title": "7. chunk级指标",
+      "title": "8. chunk级指标",
       "type": "row"
     },
     {
@@ -2643,7 +2756,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 92
+        "y": 93
       },
       "id": 903,
       "options": {
@@ -2790,7 +2903,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 92
+        "y": 93
       },
       "id": 904,
       "options": {
@@ -2970,6 +3083,6 @@
   "timezone": "Asia/Shanghai",
   "title": "TTFT Analysis",
   "uid": "ttft-analysis",
-  "version": 87,
+  "version": 88,
   "weekStart": ""
 }
