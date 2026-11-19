@@ -2273,7 +2273,7 @@
             "type": "prometheus",
             "uid": "cf5zm84e41v5se"
           },
-          "description": "prefetch 从本地 SSD 读取到内存的平均带宽，按成功读 I/O 的字节速率计算。",
+          "description": "prefetch 从本地 SSD 读取到内存的专用带宽。使用 prefetch 字节计数器计算；指标尚未上报时保持空图。",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2357,7 +2357,7 @@
                 "uid": "cf5zm84e41v5se"
               },
               "editorMode": "code",
-              "expr": "sum by (service_name) (rate(lmcache_mp_l2_io_size_bytes_sum{service_name=~\"$service_name\",l2_name=\"fs_native\",operation=\"read\",status=\"success\"}[1m])) / 1e9",
+              "expr": "sum by (service_name) (rate(lmcache_mp_l2_prefetch_load_bytes_total{service_name=~\"$service_name\",l2_name=\"fs_native\",status=\"success\"}[1m])) / 1e9",
               "instant": false,
               "legendFormat": "{{service_name}} prefetch读带宽",
               "range": true,
@@ -3182,6 +3182,6 @@
   "timezone": "Asia/Shanghai",
   "title": "LMCache_TTFT_Analysis",
   "uid": "ttft-analysis",
-  "version": 91,
+  "version": 92,
   "weekStart": ""
 }
