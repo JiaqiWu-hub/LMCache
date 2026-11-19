@@ -2224,7 +2224,7 @@
                   }
                 ]
               },
-              "unit": "ops"
+              "unit": "suffix:chunk/s"
             },
             "overrides": []
           },
@@ -3083,6 +3083,6 @@
   "timezone": "Asia/Shanghai",
   "title": "TTFT Analysis",
   "uid": "ttft-analysis",
-  "version": 88,
+  "version": 89,
   "weekStart": ""
 }
