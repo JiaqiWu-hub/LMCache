@@ -2473,6 +2473,18 @@
               "legendFormat": "{{service_name}} P99",
               "range": true,
               "refId": "B"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.9999, sum by (le, service_name) (rate(lmcache_mp_l2_load_duration_seconds_bucket{service_name=~\"$service_name\",l2_name=\"fs_native\"}[1m])))",
+              "instant": false,
+              "legendFormat": "{{service_name}} P9999",
+              "range": true,
+              "refId": "C"
             }
           ],
           "title": "prefetch数据就绪延迟",
@@ -3406,6 +3418,6 @@
   "timezone": "Asia/Shanghai",
   "title": "LMCache_TTFT_Analysis",
   "uid": "ttft-analysis",
-  "version": 94,
+  "version": 95,
   "weekStart": ""
 }
