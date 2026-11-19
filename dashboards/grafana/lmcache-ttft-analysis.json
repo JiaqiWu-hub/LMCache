@@ -2877,6 +2877,117 @@
             "type": "prometheus",
             "uid": "cf5zm84e41v5se"
           },
+          "description": "展示本地 SSD 成功读写操作的每秒次数，使用一分钟窗口计算。",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 12,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "decimals": 3,
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "iops"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 42
+          },
+          "id": 1106,
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull",
+                "mean"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "sum by (service_name) (rate(lmcache_mp_l2_io_size_bytes_count{service_name=~\"$service_name\",l2_name=\"fs_native\",operation=\"read\",status=\"success\"}[1m]))",
+              "instant": false,
+              "legendFormat": "{{service_name}} 本地SSD→内存 IOPS",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "sum by (service_name) (rate(lmcache_mp_l2_io_size_bytes_count{service_name=~\"$service_name\",l2_name=\"fs_native\",operation=\"write\",status=\"success\"}[1m]))",
+              "instant": false,
+              "legendFormat": "{{service_name}} 内存→本地SSD IOPS",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "各缓存层IOPS",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
           "description": "GPU 显存写入内存层的吞吐量，使用当前选择的时间桶计算。",
           "fieldConfig": {
             "defaults": {
@@ -2935,7 +3046,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 42
+            "y": 50
           },
           "id": 719,
           "options": {
@@ -3034,7 +3145,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 42
+            "y": 50
           },
           "id": 720,
           "options": {
@@ -3133,7 +3244,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 50
+            "y": 58
           },
           "id": 1103,
           "options": {
@@ -3232,7 +3343,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 50
+            "y": 58
           },
           "id": 1104,
           "options": {
@@ -4083,6 +4194,6 @@
   "timezone": "Asia/Shanghai",
   "title": "TTFT Analysis",
   "uid": "ttft-analysis",
-  "version": 83,
+  "version": 84,
   "weekStart": ""
 }
