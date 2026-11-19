@@ -2742,7 +2742,7 @@
             "type": "prometheus",
             "uid": "cf5zm84e41v5se"
           },
-          "description": "汇总展示四个缓存层方向的平均带宽，使用一分钟窗口计算，单位为 GB/s。",
+          "description": "GPU 两个方向展示有效吞吐；本地 SSD 两个方向使用 I/O 字节数除以 I/O service time，展示实际读写带宽，单位为 GB/s。",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2838,9 +2838,9 @@
                 "uid": "cf5zm84e41v5se"
               },
               "editorMode": "code",
-              "expr": "sum by (service_name) (rate(lmcache_mp_l2_store_throughput_GB_per_second_sum{service_name=~\"$service_name\"}[1m])) / clamp_min(sum by (service_name) (rate(lmcache_mp_l2_store_throughput_GB_per_second_count{service_name=~\"$service_name\"}[1m])), 1e-9)",
+              "expr": "sum by (service_name) (rate(lmcache_mp_l2_io_size_bytes_sum{service_name=~\"$service_name\",l2_name=\"fs_native\",operation=\"write\",status=\"success\"}[1m])) / clamp_min(sum by (service_name) (rate(lmcache_mp_l2_io_service_duration_seconds_sum{service_name=~\"$service_name\",l2_name=\"fs_native\",operation=\"write\",status=\"success\"}[1m])), 1e-9) / 1e9",
               "instant": false,
-              "legendFormat": "{{service_name}} 内存→本地SSD 带宽",
+              "legendFormat": "{{service_name}} 内存→本地SSD 实际带宽",
               "range": true,
               "refId": "B"
             },
@@ -2850,9 +2850,9 @@
                 "uid": "cf5zm84e41v5se"
               },
               "editorMode": "code",
-              "expr": "sum by (service_name) (rate(lmcache_mp_l2_load_throughput_GB_per_second_sum{service_name=~\"$service_name\"}[1m])) / clamp_min(sum by (service_name) (rate(lmcache_mp_l2_load_throughput_GB_per_second_count{service_name=~\"$service_name\"}[1m])), 1e-9)",
+              "expr": "sum by (service_name) (rate(lmcache_mp_l2_io_size_bytes_sum{service_name=~\"$service_name\",l2_name=\"fs_native\",operation=\"read\",status=\"success\"}[1m])) / clamp_min(sum by (service_name) (rate(lmcache_mp_l2_io_service_duration_seconds_sum{service_name=~\"$service_name\",l2_name=\"fs_native\",operation=\"read\",status=\"success\"}[1m])), 1e-9) / 1e9",
               "instant": false,
-              "legendFormat": "{{service_name}} 本地SSD→内存 带宽",
+              "legendFormat": "{{service_name}} 本地SSD→内存 实际带宽",
               "range": true,
               "refId": "C"
             },
@@ -4083,6 +4083,6 @@
   "timezone": "Asia/Shanghai",
   "title": "TTFT Analysis",
   "uid": "ttft-analysis",
-  "version": 81,
+  "version": 82,
   "weekStart": ""
 }
