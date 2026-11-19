@@ -3081,8 +3081,8 @@
   },
   "timepicker": {},
   "timezone": "Asia/Shanghai",
-  "title": "TTFT Analysis",
+  "title": "LMCache_TTFT_Analysis",
   "uid": "ttft-analysis",
-  "version": 89,
+  "version": 90,
   "weekStart": ""
 }
