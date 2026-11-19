@@ -1462,6 +1462,19 @@
               "legendFormat": "{{service_name}} 本地SSD write queue wait 平均值",
               "range": true,
               "refId": "D"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "sum by (service_name) (rate(lmcache_mp_l2_io_service_duration_seconds_sum{service_name=~\"$service_name\",operation=\"write\"}[1m]))\n/\nclamp_min(sum by (service_name) (rate(lmcache_mp_l2_io_service_duration_seconds_count{service_name=~\"$service_name\",operation=\"write\"}[1m])), 1e-9)",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} 本地SSD write IO time 平均值",
+              "range": true,
+              "refId": "E"
             }
           ],
           "title": "Set链路耗时（平均值）",
@@ -1601,6 +1614,19 @@
               "legendFormat": "{{service_name}} 本地SSD write queue wait P99",
               "range": true,
               "refId": "D"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.99, sum by (le, service_name) (rate(lmcache_mp_l2_io_service_duration_seconds_bucket{service_name=~\"$service_name\",operation=\"write\"}[1m])))",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} 本地SSD write IO time P99",
+              "range": true,
+              "refId": "E"
             }
           ],
           "title": "Set链路耗时（P99）",
@@ -1740,6 +1766,19 @@
               "legendFormat": "{{service_name}} 本地SSD write queue wait P9999",
               "range": true,
               "refId": "D"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.9999, sum by (le, service_name) (rate(lmcache_mp_l2_io_service_duration_seconds_bucket{service_name=~\"$service_name\",operation=\"write\"}[1m])))",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} 本地SSD write IO time P9999",
+              "range": true,
+              "refId": "E"
             }
           ],
           "title": "Set链路耗时（P9999）",
@@ -3909,6 +3948,6 @@
   "timezone": "Asia/Shanghai",
   "title": "TTFT Analysis",
   "uid": "ttft-analysis",
-  "version": 71,
+  "version": 72,
   "weekStart": ""
 }
