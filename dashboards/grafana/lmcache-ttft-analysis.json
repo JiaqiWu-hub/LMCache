@@ -2428,7 +2428,7 @@
           },
           "gridPos": {
             "h": 8,
-            "w": 24,
+            "w": 12,
             "x": 0,
             "y": 98
           },
@@ -2476,6 +2476,119 @@
             }
           ],
           "title": "prefetch数据就绪延迟",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "description": "prefetch 成功和失败 chunk 的占比。分子分别为完成和失败 chunk 数，分母为两者之和，使用一分钟窗口。",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 12,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "decimals": 3,
+              "mappings": [],
+              "max": 1,
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "percentunit"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 98
+          },
+          "id": 1204,
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull",
+                "mean"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "sum by (service_name) (increase(lmcache_mp_l2_prefetch_load_completed_chunks_total{service_name=~\"$service_name\"}[1m])) / clamp_min(sum by (service_name) (increase(lmcache_mp_l2_prefetch_load_completed_chunks_total{service_name=~\"$service_name\"}[1m])) + sum by (service_name) (increase(lmcache_mp_l2_prefetch_failure_chunks_total{service_name=~\"$service_name\"}[1m])), 1e-9)",
+              "instant": false,
+              "legendFormat": "{{service_name}} prefetch读取成功率",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "sum by (service_name) (increase(lmcache_mp_l2_prefetch_failure_chunks_total{service_name=~\"$service_name\"}[1m])) / clamp_min(sum by (service_name) (increase(lmcache_mp_l2_prefetch_load_completed_chunks_total{service_name=~\"$service_name\"}[1m])) + sum by (service_name) (increase(lmcache_mp_l2_prefetch_failure_chunks_total{service_name=~\"$service_name\"}[1m])), 1e-9)",
+              "instant": false,
+              "legendFormat": "{{service_name}} prefetch读取失败率",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "prefetch读取成功率/失败率",
           "type": "timeseries"
         }
       ],
@@ -3293,6 +3406,6 @@
   "timezone": "Asia/Shanghai",
   "title": "LMCache_TTFT_Analysis",
   "uid": "ttft-analysis",
-  "version": 93,
+  "version": 94,
   "weekStart": ""
 }
