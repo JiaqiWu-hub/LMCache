@@ -19,7 +19,7 @@
       },
       "id": 100,
       "panels": [],
-      "title": "1. TTFT 总览",
+      "title": "1. TTFT拆解",
       "type": "row"
     },
     {
@@ -3948,6 +3948,6 @@
   "timezone": "Asia/Shanghai",
   "title": "TTFT Analysis",
   "uid": "ttft-analysis",
-  "version": 78,
+  "version": 79,
   "weekStart": ""
 }
