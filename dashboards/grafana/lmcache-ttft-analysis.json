@@ -610,7 +610,7 @@
               "refId": "E"
             }
           ],
-          "title": "Lookup Total（包含 Prefetch） 分段耗时（平均值）",
+          "title": "Lookup 分段耗时（平均值）",
           "type": "timeseries"
         },
         {
@@ -759,7 +759,7 @@
               "refId": "E"
             }
           ],
-          "title": "Lookup Total（包含 Prefetch） 分段耗时（P99）",
+          "title": "Lookup 分段耗时（P99）",
           "type": "timeseries"
         },
         {
@@ -908,7 +908,7 @@
               "refId": "E"
             }
           ],
-          "title": "Lookup Total（包含 Prefetch） 分段耗时（P9999）",
+          "title": "Lookup 分段耗时（P9999）",
           "type": "timeseries"
         },
         {
@@ -3792,6 +3792,6 @@
   "timezone": "Asia/Shanghai",
   "title": "TTFT Analysis",
   "uid": "ttft-analysis",
-  "version": 67,
+  "version": 68,
   "weekStart": ""
 }
