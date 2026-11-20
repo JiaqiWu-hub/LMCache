@@ -198,6 +198,10 @@ L2 Metrics
    * - ``lmcache_mp.l2_load_completed``
      - Counter (attr: ``l2_name``)
      - Number of per-adapter L2 load requests completed, labeled by adapter type.
+   * - ``lmcache_mp.l2_prefetch_load_bytes``
+     - Counter (attr: ``l2_name``)
+     - Number of bytes successfully loaded from L2 by prefetch, labeled by
+       adapter type.
    * - ``lmcache_mp.l2_evicted_objects``
      - Counter (attr: ``cache_salt``)
      - Number of chunks evicted from L2, grouped by tenant.
@@ -517,6 +521,23 @@ Adapters with no in-flight work emit no datapoint for that scrape.
        are crowding out cacheable data.  Per-adapter byte attribution
        follows each request's ``load_plan`` bitmap, so summing across
        adapters never double-counts.
+   * - ``lmcache_mp.l2_io_inflight_operations``
+     - ObservableGauge (attrs: ``l2_name``, ``adapter_index``, ``operation``)
+     - Current actual logical file-object reads or writes in flight for
+       native L2 connectors. One object operation counts as ``1`` even if
+       it issues multiple kernel ``read(2)`` or ``write(2)`` calls.
+   * - ``lmcache_mp.l2_io_peak_inflight_operations``
+     - ObservableGauge (attrs: ``l2_name``, ``adapter_index``, ``operation``)
+     - Peak actual logical-object I/O concurrency observed since the
+       previous collection of this gauge, normally one Prometheus scrape
+       interval. This is a short-window peak, not a process-lifetime
+       high-water mark. Active operations carry into the next window, so
+       I/O crossing a collection boundary is not lost.
+
+For writes, the service-time and concurrency windows start only after the
+duplicate-file check decides that an actual write attempt is needed. A
+duplicate store skipped before writing therefore emits no write-duration
+sample and does not increase write concurrency.
 
 EventBus Self-Monitoring
 ~~~~~~~~~~~~~~~~~~~~~~~~

@@ -22,6 +22,9 @@ from lmcache.v1.distributed.api import (
 )
 from lmcache.v1.distributed.config import L1ManagerConfig, L1MemoryManagerConfig
 from lmcache.v1.distributed.l1_manager import L1Manager
+from lmcache.v1.distributed.l2_adapters.fault_inject_l2_adapter import (
+    FaultInjectL2Adapter,
+)
 from lmcache.v1.distributed.l2_adapters.mock_l2_adapter import (
     MockL2Adapter,
     MockL2AdapterConfig,
@@ -40,6 +43,8 @@ from lmcache.v1.distributed.storage_controllers.store_policy import (
     DefaultStorePolicy,
 )
 from lmcache.v1.memory_management import MemoryObjMetadata, TensorMemoryObj
+from lmcache.v1.mp_observability.event_bus import EventBusConfig, init_event_bus
+from lmcache.v1.mp_observability.subscribers.metrics.l2 import L2MetricsSubscriber
 
 # Importing this sets the process-wide MeterProvider with an
 # InMemoryMetricReader; controllers bind their instruments to it.
@@ -177,6 +182,18 @@ def l1_manager():
     mgr = L1Manager(config)
     yield mgr
     mgr.close()
+
+
+@pytest.fixture
+def enabled_event_bus():
+    bus = init_event_bus(EventBusConfig(enabled=True, max_queue_size=1_000))
+    bus.register_subscriber(L2MetricsSubscriber())
+    bus.start()
+    try:
+        yield bus
+    finally:
+        bus.stop()
+        init_event_bus(EventBusConfig(enabled=False))
 
 
 # =============================================================================
@@ -384,4 +401,56 @@ class TestNumInflightL2Loads:
             == before_bytes
         )
 
+        adapter.close()
+
+
+class TestPrefetchLoadedBytes:
+    """Prefetch byte counters include only objects reported as loaded."""
+
+    def test_partial_load_counts_only_successful_object_bytes(
+        self, l1_manager, enabled_event_bus
+    ):
+        inner = make_adapter()
+        adapter = FaultInjectL2Adapter(
+            inner,
+            rate=0.0,
+            seed=0,
+            gap_indices=(1,),
+        )
+        adapter_index = 0
+        attrs = {"l2_name": "mock"}
+        layout = make_layout()
+        keys = [make_object_key(500 + i) for i in range(3)]
+
+        store_keys_in_l2(inner, keys, layout)
+
+        ctrl = PrefetchController(
+            l1_manager=l1_manager,
+            l2_adapters=[adapter],
+            adapter_descriptors=[make_descriptor(adapter_index)],
+            policy=DefaultPrefetchPolicy(),
+        )
+        ctrl.start()
+
+        before = _value_for("lmcache_mp.l2_prefetch_load_bytes", attrs)
+        req_id = ctrl.submit_prefetch_request(PrefetchRequestSpec(keys, {0: layout}))
+
+        assert wait_for_condition(
+            lambda: ctrl.query_prefetch_result(req_id) is not None
+        )
+
+        object_bytes = (
+            layout.shapes[0].numel()
+            * torch.empty((), dtype=layout.dtypes[0]).element_size()
+        )
+        expected_bytes = object_bytes * (len(keys) - 1)
+        assert wait_for_condition(
+            lambda: (
+                _value_for("lmcache_mp.l2_prefetch_load_bytes", attrs)
+                == before + expected_bytes
+            )
+        )
+
+        l1_manager.finish_read([keys[0], keys[2]])
+        ctrl.stop()
         adapter.close()

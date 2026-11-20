@@ -46,6 +46,9 @@ class L2MetricsSubscriber(EventSubscriber):
     - ``lmcache_mp.l2_prefetch_load_submitted_objects`` — chunks submitted for load
     - ``lmcache_mp.l2_prefetch_load_completed`` — chunks successfully loaded from L2
 
+    - ``lmcache_mp.l2_prefetch_load_bytes`` - bytes successfully loaded from L2
+      (attr: ``l2_name``)
+
     The ``l2_name``-labeled counters (``l2_store_completed``, ``l2_load_completed``)
     let dashboards compute per-backend IOPS via
     ``rate(<counter>_total{l2_name="..."}[1m])``.
@@ -117,6 +120,11 @@ class L2MetricsSubscriber(EventSubscriber):
             description="Total chunks successfully loaded from L2",
             unit="chunks",
         )
+        self._prefetch_load_bytes = meter.create_counter(
+            "lmcache_mp.l2_prefetch_load_bytes",
+            description="Total bytes successfully loaded from L2 by prefetch",
+            unit="By",
+        )
 
         # Eviction counter
         self._evicted_objects = meter.create_counter(
@@ -153,7 +161,11 @@ class L2MetricsSubscriber(EventSubscriber):
         )
 
     def _on_load_task_completed(self, event: Event) -> None:
-        self._load_completed.add(1, attributes=_l2_name_attrs(event))
+        attrs = _l2_name_attrs(event)
+        self._load_completed.add(1, attributes=attrs)
+        bytes_loaded = int(event.metadata.get("bytes_loaded", 0))
+        if bytes_loaded > 0:
+            self._prefetch_load_bytes.add(bytes_loaded, attributes=attrs)
 
     def _on_lookup_submitted(self, event: Event) -> None:
         self._prefetch_lookup_submitted.add(1)

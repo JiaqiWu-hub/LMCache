@@ -61,6 +61,8 @@ class EventType(Enum):
     # Per-adapter load task events, for throughput correlation.  Fire once
     # per (request_id, adapter_index) pair, unlike the request-level
     # L2_PREFETCH_LOAD_* events above which aggregate across adapters.
+    # L2_LOAD_TASK_COMPLETED.metadata["bytes_loaded"] contains the sum of
+    # successfully loaded object sizes for that adapter task.
     L2_LOAD_TASK_SUBMITTED = "l2.load_task.submitted"
     L2_LOAD_TASK_COMPLETED = "l2.load_task.completed"
 

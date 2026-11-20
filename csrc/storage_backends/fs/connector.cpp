@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "connector.h"
+#include <algorithm>
 #include <cerrno>
 #include <cstdio>
 #include <stdexcept>
@@ -14,6 +15,32 @@ using Clock = std::chrono::steady_clock;
 // ---------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------
+
+namespace {
+
+class IOConcurrencyGuard {
+ public:
+  IOConcurrencyGuard(uint64_t& inflight, uint64_t& peak, std::mutex& mu)
+      : inflight_(inflight), mu_(mu) {
+    std::lock_guard<std::mutex> lock(mu_);
+    ++inflight_;
+    peak = std::max(peak, inflight_);
+  }
+
+  ~IOConcurrencyGuard() {
+    std::lock_guard<std::mutex> lock(mu_);
+    --inflight_;
+  }
+
+  IOConcurrencyGuard(const IOConcurrencyGuard&) = delete;
+  IOConcurrencyGuard& operator=(const IOConcurrencyGuard&) = delete;
+
+ private:
+  uint64_t& inflight_;
+  std::mutex& mu_;
+};
+
+}  // namespace
 
 std::string FSConnector::replace_all(const std::string& str,
                                      const std::string& from,
@@ -167,6 +194,20 @@ std::vector<IOSample> FSConnector::drain_io_samples() {
   return samples;
 }
 
+std::pair<uint64_t, uint64_t> FSConnector::get_io_inflight_counts() const {
+  std::lock_guard<std::mutex> lock(io_concurrency_mu_);
+  return {inflight_reads_, inflight_writes_};
+}
+
+std::pair<uint64_t, uint64_t> FSConnector::drain_io_peak_counts() {
+  std::lock_guard<std::mutex> lock(io_concurrency_mu_);
+  const uint64_t read_peak = std::max(peak_reads_, inflight_reads_);
+  const uint64_t write_peak = std::max(peak_writes_, inflight_writes_);
+  peak_reads_ = inflight_reads_;
+  peak_writes_ = inflight_writes_;
+  return {read_peak, write_peak};
+}
+
 void FSConnector::record_io_sample(
     bool is_write, size_t io_size, Clock::time_point submitted_at,
     Clock::time_point started_at, Clock::time_point finished_at, bool ok) {
@@ -219,12 +260,13 @@ void FSConnector::do_batch_get(WorkerFSConn& conn, const Request& req) {
 void FSConnector::do_batch_set(WorkerFSConn& conn, const Request& req) {
   for (size_t i = 0; i < req.keys.size(); ++i) {
     const auto submitted_at = req.batch->submitted_at;
-    const auto started_at = Clock::now();
+    Clock::time_point started_at{};
     bool did_attempt = false;
     bool ok = false;
     try {
       do_single_set_impl(conn, req.keys[i], req.buf_ptrs[i], req.buf_lens[i],
-                         req.batch_chunk_num_bytes, &did_attempt);
+                         req.batch_chunk_num_bytes, &did_attempt,
+                         &started_at);
       ok = did_attempt;
     } catch (...) {
       if (did_attempt) {
@@ -260,6 +302,7 @@ void FSConnector::do_single_get(WorkerFSConn& conn, const std::string& key,
     }
   }
 
+  IOConcurrencyGuard guard(inflight_reads_, peak_reads_, io_concurrency_mu_);
   int fd = ::open(file_path.c_str(), flags);
   if (fd < 0) {
     throw std::runtime_error("open for read failed: " + file_path.string() +
@@ -299,13 +342,14 @@ void FSConnector::do_single_get(WorkerFSConn& conn, const std::string& key,
 void FSConnector::do_single_set(WorkerFSConn& conn, const std::string& key,
                                 const void* buf, size_t len,
                                 size_t chunk_size) {
-  do_single_set_impl(conn, key, buf, len, chunk_size, nullptr);
+  do_single_set_impl(conn, key, buf, len, chunk_size, nullptr, nullptr);
 }
 
 void FSConnector::do_single_set_impl(WorkerFSConn& conn,
                                      const std::string& key, const void* buf,
                                      size_t len, size_t chunk_size,
-                                     bool* did_attempt) {
+                                     bool* did_attempt,
+                                     Clock::time_point* started_at) {
   (void)chunk_size;
   if (did_attempt != nullptr) {
     *did_attempt = false;
@@ -321,6 +365,10 @@ void FSConnector::do_single_set_impl(WorkerFSConn& conn,
   if (did_attempt != nullptr) {
     *did_attempt = true;
   }
+  if (started_at != nullptr) {
+    *started_at = Clock::now();
+  }
+  IOConcurrencyGuard guard(inflight_writes_, peak_writes_, io_concurrency_mu_);
 
   // Determine temp file path
   std::filesystem::path tmp_path;

@@ -27,7 +27,7 @@
         "type": "prometheus",
         "uid": "cf5zm84e41v5se"
       },
-      "description": "TTFT、请求排队和 Prefill 的平均值。三条曲线均由对应 histogram 的 _sum / _count 计算；指标单位均为秒。",
+      "description": "TTFT、请求排队、Prefill 和入队前延迟的平均值。入队前延迟按 TTFT - Queue - Prefill 计算，负值按 0 展示；四条曲线均由对应 histogram 的 _sum / _count 计算，指标单位均为秒。",
       "fieldConfig": {
         "defaults": {
           "custom": {
@@ -75,6 +75,11 @@
           "expr": "sum(rate(vllm:request_prefill_time_seconds_sum{service_name=~\"$service_name\"}[$__rate_interval])) / sum(rate(vllm:request_prefill_time_seconds_count{service_name=~\"$service_name\"}[$__rate_interval]))",
           "legendFormat": "Prefill",
           "refId": "C"
+        },
+        {
+          "expr": "clamp_min((sum(rate(vllm:time_to_first_token_seconds_sum{service_name=~\"$service_name\"}[$__rate_interval])) / clamp_min(sum(rate(vllm:time_to_first_token_seconds_count{service_name=~\"$service_name\"}[$__rate_interval])), 1e-9)) - (sum(rate(vllm:request_queue_time_seconds_sum{service_name=~\"$service_name\"}[$__rate_interval])) / clamp_min(sum(rate(vllm:request_queue_time_seconds_count{service_name=~\"$service_name\"}[$__rate_interval])), 1e-9)) - (sum(rate(vllm:request_prefill_time_seconds_sum{service_name=~\"$service_name\"}[$__rate_interval])) / clamp_min(sum(rate(vllm:request_prefill_time_seconds_count{service_name=~\"$service_name\"}[$__rate_interval])), 1e-9)), 0)",
+          "legendFormat": "入队前延迟",
+          "refId": "D"
         }
       ],
       "title": "TTFT均值拆解",
@@ -1859,7 +1864,7 @@
           },
           "gridPos": {
             "h": 8,
-            "w": 8,
+            "w": 12,
             "x": 0,
             "y": 34
           },
@@ -1994,8 +1999,8 @@
           },
           "gridPos": {
             "h": 8,
-            "w": 8,
-            "x": 8,
+            "w": 12,
+            "x": 12,
             "y": 34
           },
           "id": 1106,
@@ -2129,9 +2134,9 @@
           },
           "gridPos": {
             "h": 8,
-            "w": 8,
-            "x": 16,
-            "y": 34
+            "w": 12,
+            "x": 0,
+            "y": 42
           },
           "id": 1107,
           "options": {
@@ -2177,6 +2182,141 @@
             }
           ],
           "title": "IO size",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "cf5zm84e41v5se"
+          },
+          "description": "展示 fs_native 实际文件对象读写并发，以及每个采集短窗口内的峰值并发。",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 12,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "decimals": 0,
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 42
+          },
+          "id": 1108,
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "sum by (service_name) (lmcache_mp_l2_io_inflight_operations{service_name=~\"$service_name\",l2_name=\"fs_native\",operation=\"read\"})",
+              "instant": false,
+              "legendFormat": "{{service_name}} 读并发",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "sum by (service_name) (lmcache_mp_l2_io_inflight_operations{service_name=~\"$service_name\",l2_name=\"fs_native\",operation=\"write\"})",
+              "instant": false,
+              "legendFormat": "{{service_name}} 写并发",
+              "range": true,
+              "refId": "B"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "sum by (service_name) (lmcache_mp_l2_io_peak_inflight_operations{service_name=~\"$service_name\",l2_name=\"fs_native\",operation=\"read\"})",
+              "instant": false,
+              "legendFormat": "{{service_name}} 读峰值并发",
+              "range": true,
+              "refId": "C"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "sum by (service_name) (lmcache_mp_l2_io_peak_inflight_operations{service_name=~\"$service_name\",l2_name=\"fs_native\",operation=\"write\"})",
+              "instant": false,
+              "legendFormat": "{{service_name}} 写峰值并发",
+              "range": true,
+              "refId": "D"
+            }
+          ],
+          "title": "并发数量",
           "type": "timeseries"
         }
       ],
@@ -2381,7 +2521,7 @@
                 "uid": "cf5zm84e41v5se"
               },
               "editorMode": "code",
-              "expr": "sum by (service_name) (rate(lmcache_mp_l2_prefetch_load_bytes_total{service_name=~\"$service_name\",l2_name=\"fs_native\",status=\"success\"}[1m])) / 1e9",
+              "expr": "sum by (service_name) (rate(lmcache_mp_l2_prefetch_load_bytes_total{service_name=~\"$service_name\",l2_name=\"fs_native\"}[1m])) / 1e9",
               "instant": false,
               "legendFormat": "{{service_name}} prefetch读带宽",
               "range": true,
@@ -2519,7 +2659,7 @@
             "type": "prometheus",
             "uid": "cf5zm84e41v5se"
           },
-          "description": "prefetch 成功和失败 chunk 的占比。分子分别为完成和失败 chunk 数，分母为两者之和，使用一分钟窗口。",
+          "description": "prefetch 成功和失败 chunk 的占比。分子分别为完成和失败 chunk 数，分母为两者之和，使用一分钟窗口；失败计数序列缺失时按 0 处理。",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2605,7 +2745,7 @@
                 "uid": "cf5zm84e41v5se"
               },
               "editorMode": "code",
-              "expr": "sum by (service_name) (increase(lmcache_mp_l2_prefetch_load_completed_chunks_total{service_name=~\"$service_name\"}[1m])) / clamp_min(sum by (service_name) (increase(lmcache_mp_l2_prefetch_load_completed_chunks_total{service_name=~\"$service_name\"}[1m])) + sum by (service_name) (increase(lmcache_mp_l2_prefetch_failure_chunks_total{service_name=~\"$service_name\"}[1m])), 1e-9)",
+          "expr": "(sum by (service_name) (increase(lmcache_mp_l2_prefetch_load_completed_chunks_total{service_name=~\"$service_name\"}[1m])) or (sum by (service_name) (increase(lmcache_mp_l2_prefetch_failure_chunks_total{service_name=~\"$service_name\"}[1m])) * 0)) / clamp_min((sum by (service_name) (increase(lmcache_mp_l2_prefetch_load_completed_chunks_total{service_name=~\"$service_name\"}[1m])) or (sum by (service_name) (increase(lmcache_mp_l2_prefetch_failure_chunks_total{service_name=~\"$service_name\"}[1m])) * 0)) + (sum by (service_name) (increase(lmcache_mp_l2_prefetch_failure_chunks_total{service_name=~\"$service_name\"}[1m])) or (sum by (service_name) (increase(lmcache_mp_l2_prefetch_load_completed_chunks_total{service_name=~\"$service_name\"}[1m])) * 0)), 1e-9)",
               "instant": false,
               "legendFormat": "{{service_name}} prefetch读取成功率",
               "range": true,
@@ -2617,7 +2757,7 @@
                 "uid": "cf5zm84e41v5se"
               },
               "editorMode": "code",
-              "expr": "sum by (service_name) (increase(lmcache_mp_l2_prefetch_failure_chunks_total{service_name=~\"$service_name\"}[1m])) / clamp_min(sum by (service_name) (increase(lmcache_mp_l2_prefetch_load_completed_chunks_total{service_name=~\"$service_name\"}[1m])) + sum by (service_name) (increase(lmcache_mp_l2_prefetch_failure_chunks_total{service_name=~\"$service_name\"}[1m])), 1e-9)",
+          "expr": "(sum by (service_name) (increase(lmcache_mp_l2_prefetch_failure_chunks_total{service_name=~\"$service_name\"}[1m])) or (sum by (service_name) (increase(lmcache_mp_l2_prefetch_load_completed_chunks_total{service_name=~\"$service_name\"}[1m])) * 0)) / clamp_min((sum by (service_name) (increase(lmcache_mp_l2_prefetch_load_completed_chunks_total{service_name=~\"$service_name\"}[1m])) or (sum by (service_name) (increase(lmcache_mp_l2_prefetch_failure_chunks_total{service_name=~\"$service_name\"}[1m])) * 0)) + (sum by (service_name) (increase(lmcache_mp_l2_prefetch_failure_chunks_total{service_name=~\"$service_name\"}[1m])) or (sum by (service_name) (increase(lmcache_mp_l2_prefetch_load_completed_chunks_total{service_name=~\"$service_name\"}[1m])) * 0)), 1e-9)",
               "instant": false,
               "legendFormat": "{{service_name}} prefetch读取失败率",
               "range": true,
@@ -2926,6 +3066,6 @@
   "timezone": "Asia/Shanghai",
   "title": "LMCache_TTFT_Analysis",
   "uid": "ttft-analysis",
-  "version": 99,
+  "version": 113,
   "weekStart": ""
 }

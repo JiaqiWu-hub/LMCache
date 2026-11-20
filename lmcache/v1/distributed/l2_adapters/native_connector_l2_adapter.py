@@ -148,6 +148,9 @@ class NativeConnectorL2Adapter(L2AdapterInterface):
         self._has_io_samples = callable(
             getattr(native_client, "drain_io_samples", None)
         )
+        self._has_io_concurrency_metrics = callable(
+            getattr(native_client, "get_io_inflight_counts", None)
+        ) and callable(getattr(native_client, "drain_io_peak_counts", None))
 
         # Pending delete events for synchronous delete() calls
         self._pending_delete_events: dict[L2TaskId, threading.Event] = {}
@@ -371,6 +374,32 @@ class NativeConnectorL2Adapter(L2AdapterInterface):
         }
         status.update(self._extra_status)
         return status
+
+    def get_io_inflight_counts(self) -> tuple[int, int] | None:
+        """Return current actual read/write object concurrency.
+
+        Returns:
+            ``(reads, writes)`` when the wrapped native connector exposes
+            concurrency instrumentation; otherwise ``None``. Each count
+            represents logical file-object I/O, not individual
+            ``read(2)``/``write(2)`` calls.
+        """
+        if not self._has_io_concurrency_metrics:
+            return None
+        reads, writes = self._client.get_io_inflight_counts()
+        return int(reads), int(writes)
+
+    def drain_io_peak_counts(self) -> tuple[int, int] | None:
+        """Return and reset the peak read/write concurrency counters.
+
+        Returns:
+            ``(reads, writes)`` maxima observed since the previous call, or
+            ``None`` when the wrapped connector lacks instrumentation.
+        """
+        if not self._has_io_concurrency_metrics:
+            return None
+        reads, writes = self._client.drain_io_peak_counts()
+        return int(reads), int(writes)
 
     # ---------------------------------------------------------------
     # Cleanup

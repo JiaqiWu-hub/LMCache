@@ -56,6 +56,8 @@ class MockNativeConnector:
         self._completions: list[tuple[int, bool, str, list[bool] | None]] = []
         self._lock = threading.Lock()
         self._closed = False
+        self._io_inflight_counts = (0, 0)
+        self._io_peak_counts = (0, 0)
 
     def event_fd(self) -> int:
         return self._efd.fileno()
@@ -137,6 +139,25 @@ class MockNativeConnector:
             completions = list(self._completions)
             self._completions.clear()
         return completions
+
+    def get_io_inflight_counts(self) -> tuple[int, int]:
+        with self._lock:
+            return self._io_inflight_counts
+
+    def drain_io_peak_counts(self) -> tuple[int, int]:
+        with self._lock:
+            peaks = self._io_peak_counts
+            self._io_peak_counts = (0, 0)
+            return peaks
+
+    def set_io_counts(
+        self,
+        inflight: tuple[int, int],
+        peak: tuple[int, int],
+    ) -> None:
+        with self._lock:
+            self._io_inflight_counts = inflight
+            self._io_peak_counts = peak
 
     def close(self):
         if not self._closed:
@@ -419,6 +440,40 @@ class TestEventFdInterface:
         assert lookup_fd >= 0
         assert load_fd >= 0
         assert len({store_fd, lookup_fd, load_fd}) == 3
+
+
+class TestIOConcurrencyInterface:
+    def test_reports_current_counts(self):
+        client = MockNativeConnector()
+        client.set_io_counts(inflight=(2, 3), peak=(4, 5))
+        adp = NativeConnectorL2Adapter(client)
+        try:
+            assert adp.get_io_inflight_counts() == (2, 3)
+        finally:
+            adp.close()
+
+    def test_drains_peak_counts(self):
+        client = MockNativeConnector()
+        client.set_io_counts(inflight=(0, 1), peak=(4, 5))
+        adp = NativeConnectorL2Adapter(client)
+        try:
+            assert adp.drain_io_peak_counts() == (4, 5)
+            assert adp.drain_io_peak_counts() == (0, 0)
+        finally:
+            adp.close()
+
+    def test_returns_none_for_connector_without_counters(self):
+        class NoConcurrencyConnector(MockNativeConnector):
+            get_io_inflight_counts = None
+            drain_io_peak_counts = None
+
+        client = NoConcurrencyConnector()
+        adp = NativeConnectorL2Adapter(client)
+        try:
+            assert adp.get_io_inflight_counts() is None
+            assert adp.drain_io_peak_counts() is None
+        finally:
+            adp.close()
 
 
 # =============================================================================

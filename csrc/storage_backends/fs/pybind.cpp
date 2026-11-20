@@ -26,5 +26,15 @@ PYBIND11_MODULE(lmcache_fs, m) {
               sample.service_seconds, sample.ok));
         }
         return result;
-      });
+      })
+      .def("get_io_inflight_counts",
+           [](const lmcache::connector::FSConnector& self) {
+             const auto [reads, writes] = self.get_io_inflight_counts();
+             return py::make_tuple(reads, writes);
+           })
+      .def("drain_io_peak_counts",
+           [](lmcache::connector::FSConnector& self) {
+             const auto [reads, writes] = self.drain_io_peak_counts();
+             return py::make_tuple(reads, writes);
+           });
 }

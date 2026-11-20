@@ -6,11 +6,13 @@
 #include <sys/stat.h>
 #include <sys/statvfs.h>
 #include <unistd.h>
+#include <chrono>
 #include <cstring>
 #include <deque>
 #include <filesystem>
 #include <mutex>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace lmcache {
@@ -42,6 +44,8 @@ class FSConnector : public ConnectorBase<WorkerFSConn> {
   ~FSConnector() override;
 
   std::vector<IOSample> drain_io_samples();
+  std::pair<uint64_t, uint64_t> get_io_inflight_counts() const;
+  std::pair<uint64_t, uint64_t> drain_io_peak_counts();
 
  protected:
   WorkerFSConn create_connection() override;
@@ -76,7 +80,8 @@ class FSConnector : public ConnectorBase<WorkerFSConn> {
                                  const std::string& to);
   void do_single_set_impl(WorkerFSConn& conn, const std::string& key,
                           const void* buf, size_t len, size_t chunk_size,
-                          bool* did_attempt);
+                          bool* did_attempt,
+                          std::chrono::steady_clock::time_point* started_at);
   void record_io_sample(bool is_write, size_t io_size,
                         std::chrono::steady_clock::time_point submitted_at,
                         std::chrono::steady_clock::time_point started_at,
@@ -90,6 +95,11 @@ class FSConnector : public ConnectorBase<WorkerFSConn> {
   size_t read_ahead_size_;
   std::mutex io_samples_mu_;
   std::deque<IOSample> io_samples_;
+  mutable std::mutex io_concurrency_mu_;
+  uint64_t inflight_reads_ = 0;
+  uint64_t inflight_writes_ = 0;
+  uint64_t peak_reads_ = 0;
+  uint64_t peak_writes_ = 0;
 };
 
 }  // namespace connector

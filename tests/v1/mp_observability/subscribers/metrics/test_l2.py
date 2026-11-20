@@ -466,6 +466,28 @@ class TestL2NameLabeledCounters:
         nixl_key = (("l2_name", "nixl_store"),)
         assert after.get(nixl_key, 0) == before.get(nixl_key, 0) + 1
 
+    def test_load_task_completed_counts_successful_bytes(self, bus, subscriber):
+        bus.start()
+        before = _read_counters_by_attrs().get("lmcache_mp.l2_prefetch_load_bytes", {})
+        bus.publish(
+            Event(
+                event_type=EventType.L2_LOAD_TASK_COMPLETED,
+                metadata={
+                    "request_id": 7,
+                    "adapter_index": 0,
+                    "task_id": 42,
+                    "l2_name": "fs_native",
+                    "bytes_loaded": 3_072,
+                },
+            )
+        )
+        time.sleep(_DRAIN_WAIT)
+        bus.stop()
+
+        after = _read_counters_by_attrs().get("lmcache_mp.l2_prefetch_load_bytes", {})
+        fs_key = (("l2_name", "fs_native"),)
+        assert after.get(fs_key, 0) == before.get(fs_key, 0) + 3_072
+
     def test_different_l2_names_accumulate_independently(self, bus, subscriber):
         bus.start()
         before = _read_counters_by_attrs().get("lmcache_mp.l2_load_completed", {})

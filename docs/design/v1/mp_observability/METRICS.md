@@ -154,6 +154,31 @@ contribute to histograms; counters above always count all events.
 
 ---
 
+## L2 Per-Object I/O Metrics
+
+Native FS connector I/O is measured per logical file object, not per
+`read(2)`/`write(2)` syscall and not per L2 controller task. The existing
+histograms describe queue wait, service time, and bytes; two observable gauges
+describe actual concurrent I/O:
+
+| OTel metric name | Prometheus name | Type | Calculation |
+|---|---|---|---|
+| `lmcache_mp.l2_io_inflight_operations` | `lmcache_mp_l2_io_inflight_operations` | ObservableGauge (attrs: `l2_name`, `adapter_index`, `operation`) | Current logical file-object read/write count sampled at scrape time |
+| `lmcache_mp.l2_io_peak_inflight_operations` | `lmcache_mp_l2_io_peak_inflight_operations` | ObservableGauge (attrs: `l2_name`, `adapter_index`, `operation`) | Peak count since the previous collection of this gauge; the native counter and current in-flight count are drained together under one lock |
+
+A read counts as in flight from before its file `open` until after `close`.
+A write counts only after the duplicate-file check decides to attempt a write;
+it remains counted through `open`, `write`, `close`, and `rename`. A duplicate
+store skipped before the actual write attempt therefore contributes neither a
+write-duration sample nor write concurrency.
+
+The peak gauge is intentionally a **short-window peak**, normally one
+Prometheus scrape interval. It is not a process-lifetime high-water mark.
+After collection, an active operation carries into the next peak window, so
+I/O crossing the collection boundary is not lost.
+
+---
+
 ## L2 Prefetch Metrics
 
 | OTel metric name | Prometheus name | Type | Source event | Calculation |
@@ -165,6 +190,7 @@ contribute to histograms; counters above always count all events.
 | `lmcache_mp.l2_prefetch_load_submitted_objects` | `lmcache_mp_l2_prefetch_load_submitted_objects_chunks_total` | Counter (attr: `cache_salt`) | `L2_PREFETCH_LOAD_SUBMITTED` | `+count` per `cache_salt` via `key_count_per_salt` |
 | `lmcache_mp.l2_prefetch_load_completed` | `lmcache_mp_l2_prefetch_load_completed_chunks_total` | Counter (attr: `cache_salt`) | `L2_PREFETCH_LOAD_COMPLETED` | `+count` per `cache_salt` via `key_count_per_salt` |
 | `lmcache_mp.l2_load_completed` | `lmcache_mp_l2_load_completed_requests_total` | Counter (attr: `l2_name`) | `L2_LOAD_TASK_COMPLETED` | +1 per event |
+| `lmcache_mp.l2_prefetch_load_bytes` | `lmcache_mp_l2_prefetch_load_bytes_total` | Counter (attr: `l2_name`) | `L2_LOAD_TASK_COMPLETED` | Sum of successfully loaded object sizes from `bytes_loaded` |
 
 **What it answers:** How effective is L2 prefetching? What is the L2 hit rate?
 

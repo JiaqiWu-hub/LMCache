@@ -6,7 +6,7 @@ Distributed multi-tier storage manager for MP mode
 # Standard
 from contextlib import contextmanager
 from dataclasses import replace
-from typing import Iterator, Literal, Optional
+from typing import Iterator, Literal, Optional, Protocol, cast
 import threading
 import time
 
@@ -65,7 +65,20 @@ from lmcache.v1.platform import HAS_EVENTFD
 logger = init_logger(__name__)
 
 
+class _IOConcurrencyCounters(Protocol):
+    def get_io_inflight_counts(self) -> tuple[int, int]:
+        """Return current read and write object concurrency."""
+        ...
+
+    def drain_io_peak_counts(self) -> tuple[int, int]:
+        """Return and reset peak read and write object concurrency."""
+        ...
+
+
 class StorageManager:
+    _l2_io_gauges_registered: bool = False
+    _l2_io_gauge_target: "StorageManager | None" = None
+
     def __init__(self, config: StorageManagerConfig):
         self._l1_manager = L1Manager(config.l1_manager_config)
         self._event_bus = get_event_bus()
@@ -166,6 +179,36 @@ class StorageManager:
             ),
             self.get_l2_usages,
         )
+
+        StorageManager._l2_io_gauge_target = self
+        if not StorageManager._l2_io_gauges_registered:
+            StorageManager._l2_io_gauges_registered = True
+            register_gauge(
+                "lmcache.l2_io",
+                "lmcache_mp.l2_io_inflight_operations",
+                (
+                    "Actual logical L2 file-object reads/writes currently "
+                    "in flight, per adapter and operation."
+                ),
+                lambda: (
+                    StorageManager._l2_io_gauge_target.get_l2_io_inflight_observations()
+                    if StorageManager._l2_io_gauge_target is not None
+                    else []
+                ),
+            )
+            register_gauge(
+                "lmcache.l2_io",
+                "lmcache_mp.l2_io_peak_inflight_operations",
+                (
+                    "Peak actual logical L2 file-object reads/writes observed "
+                    "since the previous collection, per adapter and operation."
+                ),
+                lambda: (
+                    StorageManager._l2_io_gauge_target.get_l2_io_peak_inflight_observations()
+                    if StorageManager._l2_io_gauge_target is not None
+                    else []
+                ),
+            )
 
     # External APIs for serving engine integration code to call
     @enable_tracing()
@@ -836,6 +879,74 @@ class StorageManager:
             out.append((int(usage.total_bytes_used), {"l2_name": desc.type_name}))
         return out
 
+    def get_l2_io_inflight_observations(
+        self,
+    ) -> list[tuple[int | float, dict[str, object]]]:
+        """Current actual L2 read/write concurrency observations.
+
+        Returns:
+            One observation per ``(adapter, operation)`` pair for adapters
+            that expose native object-level concurrency counters.
+        """
+        observations: list[tuple[int | float, dict[str, object]]] = []
+        for adapter_id, desc, adapter in self._snapshot_adapters():
+            metrics_adapter = self._unwrap_io_concurrency_adapter(adapter)
+            if metrics_adapter is None:
+                continue
+            try:
+                counts = metrics_adapter.get_io_inflight_counts()
+            except Exception:
+                logger.exception(
+                    "L2 adapter %s get_io_inflight_counts() failed; skipping in gauge",
+                    desc.type_name,
+                )
+                continue
+            if counts is None:
+                continue
+            reads, writes = counts
+            attrs = {"l2_name": desc.type_name, "adapter_index": adapter_id}
+            observations.extend(
+                [
+                    (reads, {**attrs, "operation": "read"}),
+                    (writes, {**attrs, "operation": "write"}),
+                ]
+            )
+        return observations
+
+    def get_l2_io_peak_inflight_observations(
+        self,
+    ) -> list[tuple[int | float, dict[str, object]]]:
+        """Peak actual L2 read/write concurrency since the previous collection.
+
+        Reading this metric drains each adapter's peak counters, so the value
+        represents the maximum over the interval between two gauge
+        collections (normally the Prometheus scrape interval).
+        """
+        observations: list[tuple[int | float, dict[str, object]]] = []
+        for adapter_id, desc, adapter in self._snapshot_adapters():
+            metrics_adapter = self._unwrap_io_concurrency_adapter(adapter)
+            if metrics_adapter is None:
+                continue
+            try:
+                counts = metrics_adapter.drain_io_peak_counts()
+            except Exception:
+                logger.exception(
+                    "L2 adapter %s drain_io_peak_counts() failed; skipping in gauge",
+                    desc.type_name,
+                )
+                continue
+            if counts is None:
+                continue
+            reads, writes = counts
+            attrs = {"l2_name": desc.type_name, "adapter_index": adapter_id}
+            observations.extend(
+                [
+                    (reads, {**attrs, "operation": "read"}),
+                    (writes, {**attrs, "operation": "write"}),
+                ]
+            )
+        return observations
+
     def get_usage_bytes_by_cache_salt(self) -> dict[str, int]:
         """Aggregate ``cache_salt`` byte usage across every L2 adapter.
 
@@ -1030,6 +1141,8 @@ class StorageManager:
             adapter.close()
 
         self._l1_manager.close()
+        if StorageManager._l2_io_gauge_target is self:
+            StorageManager._l2_io_gauge_target = None
 
     def report_status(self) -> dict:
         """Return a status dict aggregating all sub-component statuses."""
@@ -1164,6 +1277,24 @@ class StorageManager:
         if inner is not None and isinstance(inner, L2ReconfigurableAdapter):
             return inner
 
+        return None
+
+    def _unwrap_io_concurrency_adapter(
+        self,
+        adapter: L2AdapterInterface,
+    ) -> _IOConcurrencyCounters | None:
+        """Return the adapter that owns native I/O concurrency counters.
+
+        Serde-wrapped adapters keep the native counters on their inner
+        adapter, so follow the public ``inner_adapter`` property when needed.
+        """
+        candidate: object | None = adapter
+        while candidate is not None:
+            if callable(
+                getattr(candidate, "get_io_inflight_counts", None)
+            ) and callable(getattr(candidate, "drain_io_peak_counts", None)):
+                return cast(_IOConcurrencyCounters, candidate)
+            candidate = getattr(candidate, "inner_adapter", None)
         return None
 
     def _list_reconfigurable_l2_adapters(

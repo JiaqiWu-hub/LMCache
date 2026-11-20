@@ -226,6 +226,9 @@ class InFlightPrefetchRequest:
     # Load phase: adapter_idx -> L1 bytes reserved for that adapter's
     # in-flight load.  Read by the inflight_load_memory_usage_bytes gauge.
     load_bytes_by_adapter: dict[int, int] = field(default_factory=dict)
+    # Load phase: adapter_idx -> per-object byte sizes in task-local order.
+    # Used on completion to count only objects whose success bitmap is set.
+    load_byte_sizes_by_adapter: dict[int, list[int]] = field(default_factory=dict)
     # Load phase: adapter_idx -> bitmap (populated as results arrive)
     load_results: dict[int, Bitmap] = field(default_factory=dict)
     # Load phase: keys that were write-reserved in L1
@@ -1168,7 +1171,9 @@ class PrefetchController(StorageControllerInterface):
         Every plan key must hold a write buffer in
         ``request.write_reserved_objs`` (guaranteed by the caller's
         reserved-bitmap trim). Publishes ``L2_LOAD_TASK_SUBMITTED`` per
-        adapter and one ``L2_PREFETCH_LOAD_SUBMITTED`` for the batch.
+        adapter and one ``L2_PREFETCH_LOAD_SUBMITTED`` for the batch. The
+        per-object byte sizes are retained on the request so the completed
+        event can report only bytes from successfully loaded objects.
 
         Args:
             request: The in-flight request being loaded.
@@ -1187,7 +1192,9 @@ class PrefetchController(StorageControllerInterface):
             plan_keys.extend(per_adapter_keys)
             # Per-adapter byte accounting for L2_LOAD_TASK_* throughput
             # events.  Sum individual sizes (groups may differ in size).
-            total_bytes = sum(obj.get_size() for obj in per_adapter_objs)
+            byte_sizes = [obj.get_size() for obj in per_adapter_objs]
+            request.load_byte_sizes_by_adapter[adapter_idx] = byte_sizes
+            total_bytes = sum(byte_sizes)
             request.load_bytes_by_adapter[adapter_idx] = total_bytes
 
             self._event_bus.publish(
@@ -1298,7 +1305,12 @@ class PrefetchController(StorageControllerInterface):
         request: InFlightPrefetchRequest,
         signaled_adapters: set[int],
     ) -> None:
-        """Query pending load results from signaled adapters."""
+        """Query pending load results from signaled adapters.
+
+        Completion events include ``bytes_loaded``, computed from the
+        adapter's task-local success bitmap, so failed objects do not
+        contribute to prefetch bandwidth counters.
+        """
         for adapter_idx in list(request.pending_load_tasks):
             if adapter_idx not in signaled_adapters:
                 continue
@@ -1309,6 +1321,10 @@ class PrefetchController(StorageControllerInterface):
             request.load_results[adapter_idx] = result
             del request.pending_load_tasks[adapter_idx]
             request.load_bytes_by_adapter.pop(adapter_idx, None)
+            byte_sizes = request.load_byte_sizes_by_adapter.pop(adapter_idx, [])
+            bytes_loaded = sum(
+                size for index, size in enumerate(byte_sizes) if result.test(index)
+            )
 
             self._event_bus.publish(
                 Event(
@@ -1318,6 +1334,7 @@ class PrefetchController(StorageControllerInterface):
                         "adapter_index": adapter_idx,
                         "task_id": task_id,
                         "l2_name": self._adapter_descriptors[adapter_idx].type_name,
+                        "bytes_loaded": bytes_loaded,
                     },
                 )
             )
