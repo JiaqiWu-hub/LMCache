@@ -2275,7 +2275,7 @@
               "editorMode": "code",
               "expr": "sum by (service_name) (lmcache_mp_l2_io_inflight_operations{service_name=~\"$service_name\",l2_name=\"fs_native\",operation=\"read\"})",
               "instant": false,
-              "legendFormat": "{{service_name}} 读并发",
+              "legendFormat": "本地SSD read并发数",
               "range": true,
               "refId": "A"
             },
@@ -2287,7 +2287,7 @@
               "editorMode": "code",
               "expr": "sum by (service_name) (lmcache_mp_l2_io_inflight_operations{service_name=~\"$service_name\",l2_name=\"fs_native\",operation=\"write\"})",
               "instant": false,
-              "legendFormat": "{{service_name}} 写并发",
+              "legendFormat": "本地SSD write并发数",
               "range": true,
               "refId": "B"
             },
@@ -2299,7 +2299,7 @@
               "editorMode": "code",
               "expr": "sum by (service_name) (lmcache_mp_l2_io_peak_inflight_operations{service_name=~\"$service_name\",l2_name=\"fs_native\",operation=\"read\"})",
               "instant": false,
-              "legendFormat": "{{service_name}} 读峰值并发",
+              "legendFormat": "本地SSD read峰值并发数",
               "range": true,
               "refId": "C"
             },
@@ -2311,7 +2311,7 @@
               "editorMode": "code",
               "expr": "sum by (service_name) (lmcache_mp_l2_io_peak_inflight_operations{service_name=~\"$service_name\",l2_name=\"fs_native\",operation=\"write\"})",
               "instant": false,
-              "legendFormat": "{{service_name}} 写峰值并发",
+              "legendFormat": "本地SSD write峰值并发数",
               "range": true,
               "refId": "D"
             }
