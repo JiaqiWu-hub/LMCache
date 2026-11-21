@@ -95,16 +95,6 @@ class L0L1ThroughputSubscriber(EventSubscriber):
             ),
             unit="s",
         )
-        self._store_bytes = meter.create_counter(
-            "lmcache_mp.l0_l1_store_bytes",
-            description="Total bytes transferred from GPU memory to CPU memory.",
-            unit="By",
-        )
-        self._load_bytes = meter.create_counter(
-            "lmcache_mp.l0_l1_load_bytes",
-            description="Total bytes transferred from CPU memory to GPU memory.",
-            unit="By",
-        )
 
     # -- EventSubscriber interface -----------------------------------------
 
@@ -138,7 +128,6 @@ class L0L1ThroughputSubscriber(EventSubscriber):
             throughput_hist=self._store_hist,
             duration_hist=self._store_duration_hist,
             total_duration_hist=self._store_total_duration_hist,
-            bytes_counter=self._store_bytes,
         )
 
     # -- Retrieve path (L1→L0, CPU→GPU) ------------------------------------
@@ -161,7 +150,6 @@ class L0L1ThroughputSubscriber(EventSubscriber):
             throughput_hist=self._load_hist,
             duration_hist=self._load_duration_hist,
             total_duration_hist=self._load_total_duration_hist,
-            bytes_counter=self._load_bytes,
         )
 
     # -- Core computation --------------------------------------------------
@@ -190,9 +178,8 @@ class L0L1ThroughputSubscriber(EventSubscriber):
         throughput_hist: Any,
         duration_hist: Any,
         total_duration_hist: Any,
-        bytes_counter: Any,
     ) -> None:
-        """Record durations and transferred bytes from one matched transfer."""
+        """Record parent and child durations from one matched transfer."""
         key = cls._correlation_key(event)
         if key is None:
             return
@@ -215,7 +202,6 @@ class L0L1ThroughputSubscriber(EventSubscriber):
 
         total_bytes = event.metadata.get("total_bytes", 0)
         if total_bytes > 0:
-            bytes_counter.add(total_bytes, attributes=attrs)
             throughput_hist.record(total_bytes / duration / 1e9, attributes=attrs)
 
     @staticmethod

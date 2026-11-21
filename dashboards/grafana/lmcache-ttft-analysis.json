@@ -1808,7 +1808,7 @@
             "type": "prometheus",
             "uid": "cf5zm84e41v5se"
           },
-          "description": "四个方向均使用一分钟窗口内的累计传输字节数除以窗口时间，展示平均带宽，单位为 GB/s。",
+          "description": "GPU 两个方向展示有效吞吐；本地 SSD 两个方向使用一分钟窗口内的成功 I/O 字节增量除以窗口时间，展示平均读写带宽，单位为 GB/s。",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1892,7 +1892,7 @@
                 "uid": "cf5zm84e41v5se"
               },
               "editorMode": "code",
-              "expr": "sum by (service_name) (rate(lmcache_mp_l0_l1_store_bytes_total{service_name=~\"$service_name\"}[1m])) / 1e9",
+              "expr": "sum by (service_name) (rate(lmcache_mp_l0_l1_store_throughput_GB_per_second_sum{service_name=~\"$service_name\"}[1m])) / clamp_min(sum by (service_name) (rate(lmcache_mp_l0_l1_store_throughput_GB_per_second_count{service_name=~\"$service_name\"}[1m])), 1e-9)",
               "instant": false,
               "legendFormat": "{{service_name}} GPU显存→内存 带宽",
               "range": true,
@@ -1928,14 +1928,14 @@
                 "uid": "cf5zm84e41v5se"
               },
               "editorMode": "code",
-              "expr": "sum by (service_name) (rate(lmcache_mp_l0_l1_load_bytes_total{service_name=~\"$service_name\"}[1m])) / 1e9",
+              "expr": "sum by (service_name) (rate(lmcache_mp_l0_l1_load_throughput_GB_per_second_sum{service_name=~\"$service_name\"}[1m])) / clamp_min(sum by (service_name) (rate(lmcache_mp_l0_l1_load_throughput_GB_per_second_count{service_name=~\"$service_name\"}[1m])), 1e-9)",
               "instant": false,
               "legendFormat": "{{service_name}} 内存→GPU 带宽",
               "range": true,
               "refId": "D"
             }
           ],
-          "title": "各缓存层平均带宽",
+          "title": "各缓存层带宽",
           "type": "timeseries"
         },
         {
