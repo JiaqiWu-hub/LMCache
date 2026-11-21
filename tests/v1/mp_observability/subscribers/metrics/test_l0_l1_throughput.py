@@ -21,11 +21,18 @@ from lmcache.v1.mp_observability.event_bus import EventBus, EventBusConfig
 from lmcache.v1.mp_observability.subscribers.metrics.l0_l1_throughput import (
     L0L1ThroughputSubscriber,
 )
+from tests.v1.mp_observability.subscribers.metrics.counter_helpers import (
+    counter_delta,
+    counter_value,
+    read_tagged_counters,
+)
 from tests.v1.mp_observability.subscribers.metrics.otel_setup import reader as _reader
 
 _DRAIN_WAIT = 0.15
 _STORE_METRIC = "lmcache_mp.l0_l1_store_throughput"
 _LOAD_METRIC = "lmcache_mp.l0_l1_load_throughput"
+_STORE_BYTES_METRIC = "lmcache_mp.l0_l1_store_bytes"
+_LOAD_BYTES_METRIC = "lmcache_mp.l0_l1_load_bytes"
 
 
 # ---------------------------------------------------------------------------
@@ -166,6 +173,7 @@ class TestStoreThroughput:
     def test_records_gbps_with_attrs(self, subscriber):
         count_before = _total_count(_STORE_METRIC)
         sum_before = _sum(_STORE_METRIC)
+        counters_before = read_tagged_counters()
 
         # 2 GB in 0.1 s → 20 GB/s
         subscriber._on_store_start(
@@ -191,6 +199,13 @@ class TestStoreThroughput:
         assert _total_count(_STORE_METRIC) == count_before + 1
         observed_delta = _sum(_STORE_METRIC) - sum_before
         assert observed_delta == pytest.approx(20.0, rel=1e-6)
+        assert counter_value(
+            counter_delta(counters_before, read_tagged_counters()),
+            _STORE_BYTES_METRIC,
+            engine_id="7",
+            device=f"{torch_device_type}:3",
+            model_name="test-model",
+        ) == 2_000_000_000
 
         attrs = _attrs_of_nonzero_dps(_STORE_METRIC)
         assert any(
@@ -314,6 +329,7 @@ class TestLoadThroughput:
     def test_records_gbps_with_attrs(self, subscriber):
         count_before = _total_count(_LOAD_METRIC)
         sum_before = _sum(_LOAD_METRIC)
+        counters_before = read_tagged_counters()
 
         # 500 MB in 0.05 s → 10 GB/s
         subscriber._on_retrieve_start(
@@ -339,6 +355,13 @@ class TestLoadThroughput:
         assert _total_count(_LOAD_METRIC) == count_before + 1
         observed_delta = _sum(_LOAD_METRIC) - sum_before
         assert observed_delta == pytest.approx(10.0, rel=1e-6)
+        assert counter_value(
+            counter_delta(counters_before, read_tagged_counters()),
+            _LOAD_BYTES_METRIC,
+            engine_id="2",
+            device=f"{torch_device_type}:0",
+            model_name="test-model",
+        ) == 500_000_000
 
         attrs = _attrs_of_nonzero_dps(_LOAD_METRIC)
         assert any(
