@@ -27,6 +27,35 @@ Prometheus metric names and segment boundaries:
 | `lmcache_mp_l2_io_inflight_operations` | 瞬时实际对象级并发数。一次逻辑文件对象的 read 或 write 从进入实际 I/O 路径开始计 1，完成后减 1；不是底层 `read(2)`/`write(2)` 次数，也不是 L2 task 数。重复 store 被跳过时不增加 write 并发。 | ObservableGauge | 不适用，scrape 时读取原子计数。 | 不适用。 |
 | `lmcache_mp_l2_io_peak_inflight_operations` | 短窗口峰值实际对象级并发数。每次采集该 gauge 时读取并重置峰值窗口，因此表示上一次采集到本次采集之间的最大值，通常等于 Prometheus scrape interval。正在进行中的 I/O 会带入下一个窗口，避免跨采集边界的样本丢失。 | ObservableGauge | 不适用，峰值在 I/O 进入时更新，在 scrape callback 中 drain。 | 不适用。 |
 
+### Request-level prefetch SSD read metrics
+
+These histograms cover the SSD read envelope of one prefetch request across
+all adapters in its load plan. They are separate from the per-object samples
+above and must not be reconstructed by aggregating those samples.
+
+| Prometheus name | Description | Labels |
+| --- | --- | --- |
+| `lmcache_mp_prefetch_request_l2_read_queue_wait_duration_seconds` | From the earliest native batch submission to the latest individual object read start. Includes worker queueing and earlier object processing. | `l2_name`, `status`, `adapter_count` |
+| `lmcache_mp_prefetch_request_l2_read_duration_seconds` | From the latest individual object read start to the latest individual object read finish. Includes open, read, and close for the remaining concurrent work. | `l2_name`, `status`, `adapter_count` |
+
+For adapter `i`, let `submit_i` be its native batch submission time, `start_i`
+the latest object read start in that batch, and `finish_i` the latest object
+read finish:
+
+```text
+queue_wait_req = max_i(start_i) - min_i(submit_i)
+read_duration_req = max_i(finish_i) - max_i(start_i)
+
+queue_wait_req + read_duration_req
+= max_i(finish_i) - min_i(submit_i)
+```
+
+The event is emitted once per request only when every load-plan adapter
+provides timing. `status` is `success`, `partial`, or `failed`. A request with
+no L2 load has no sample. These metrics do not include lookup-and-lock,
+load-plan computation, L1 allocation, completion handoff, `finish_write`, or
+scheduler polling.
+
 Definitions:
 
 ```text

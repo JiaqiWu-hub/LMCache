@@ -614,6 +614,24 @@ class ConnectorBase : public IStorageConnector {
         std::lock_guard<std::mutex> lk(req.batch->err_mu);
         batch_comp.error = req.batch->first_error;
       }
+      {
+        std::lock_guard<std::mutex> lk(req.batch->read_io_mu);
+        batch_comp.has_read_io_timing = req.batch->read_io_observed;
+        if (batch_comp.has_read_io_timing) {
+          batch_comp.batch_submitted_at_seconds =
+              std::chrono::duration<double>(
+                  req.batch->submitted_at.time_since_epoch())
+                  .count();
+          batch_comp.last_read_started_at_seconds =
+              std::chrono::duration<double>(
+                  req.batch->last_read_started_at.time_since_epoch())
+                  .count();
+          batch_comp.last_read_finished_at_seconds =
+              std::chrono::duration<double>(
+                  req.batch->last_read_finished_at.time_since_epoch())
+                  .count();
+        }
+      }
       // for batch exists and batch get, move per-key results
       if (req.batch->batch_op == Op::BATCH_TILE_EXISTS ||
           req.batch->batch_op == Op::BATCH_TILE_GET ||

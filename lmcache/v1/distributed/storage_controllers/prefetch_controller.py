@@ -70,7 +70,11 @@ from lmcache.v1.distributed.api import (
 from lmcache.v1.distributed.bitmap_ops.fold import fold_unfold_ranked
 from lmcache.v1.distributed.error import L1Error
 from lmcache.v1.distributed.l1_manager import L1Manager
-from lmcache.v1.distributed.l2_adapters.base import L2AdapterInterface, L2TaskId
+from lmcache.v1.distributed.l2_adapters.base import (
+    L2AdapterInterface,
+    L2ReadIOTiming,
+    L2TaskId,
+)
 from lmcache.v1.distributed.storage_controller import StorageControllerInterface
 from lmcache.v1.distributed.storage_controllers.adapter_lifecycle import (
     AddAdapterOp,
@@ -231,6 +235,8 @@ class InFlightPrefetchRequest:
     load_byte_sizes_by_adapter: dict[int, list[int]] = field(default_factory=dict)
     # Load phase: adapter_idx -> bitmap (populated as results arrive)
     load_results: dict[int, Bitmap] = field(default_factory=dict)
+    # Load phase: adapter_idx -> native batch-level read timing.
+    load_read_io_by_adapter: dict[int, L2ReadIOTiming] = field(default_factory=dict)
     # Load phase: keys that were write-reserved in L1
     write_reserved_keys: list[ObjectKey] = field(default_factory=list)
     write_reserved_objs: dict[ObjectKey, "MemoryObj"] = field(default_factory=dict)
@@ -1318,7 +1324,10 @@ class PrefetchController(StorageControllerInterface):
             result = self._l2_adapters[adapter_idx].query_load_result(task_id)
             if result is None:
                 continue
+            read_io = self._l2_adapters[adapter_idx].get_load_read_io(task_id)
             request.load_results[adapter_idx] = result
+            if read_io is not None:
+                request.load_read_io_by_adapter[adapter_idx] = read_io
             del request.pending_load_tasks[adapter_idx]
             request.load_bytes_by_adapter.pop(adapter_idx, None)
             byte_sizes = request.load_byte_sizes_by_adapter.pop(adapter_idx, [])
@@ -1424,6 +1433,11 @@ class PrefetchController(StorageControllerInterface):
                 },
             )
         )
+        self._publish_request_read_io(
+            request,
+            loaded_count=len(loaded_keys),
+            failed_count=len(failed_keys),
+        )
 
         # L2 prefetch-failure anomaly reporting: keys were reserved in L1
         # (expected to load from L2) but did not appear in the load bitmap.
@@ -1476,6 +1490,67 @@ class PrefetchController(StorageControllerInterface):
             self._report_lookup_hit(request, hit_length)
 
         self._complete_request(request.request_id, retained)
+
+    def _publish_request_read_io(
+        self,
+        request: InFlightPrefetchRequest,
+        loaded_count: int,
+        failed_count: int,
+    ) -> None:
+        """Publish one request-level SSD read envelope across adapters.
+
+        Every adapter in the load plan must provide timing. A request-level
+        sample built from only a subset of adapters would silently shorten
+        the queue or read window, so incomplete timing is skipped.
+        """
+        if not request.load_plan:
+            return
+        if len(request.load_read_io_by_adapter) != len(request.load_plan):
+            logger.debug(
+                "Prefetch request %d: request-level read timing unavailable "
+                "for %d/%d adapters",
+                request.request_id,
+                len(request.load_read_io_by_adapter),
+                len(request.load_plan),
+            )
+            return
+
+        timings = list(request.load_read_io_by_adapter.values())
+        earliest_submit = min(t.batch_submitted_at_seconds for t in timings)
+        latest_start = max(t.last_started_at_seconds for t in timings)
+        latest_finish = max(t.last_finished_at_seconds for t in timings)
+        queue_wait_seconds = max(0.0, latest_start - earliest_submit)
+        read_duration_seconds = max(0.0, latest_finish - latest_start)
+
+        if failed_count == 0:
+            status = "success"
+        elif loaded_count == 0:
+            status = "failed"
+        else:
+            status = "partial"
+
+        l2_names = sorted(
+            {
+                self._adapter_descriptors[adapter_idx].type_name
+                for adapter_idx in request.load_read_io_by_adapter
+            }
+        )
+        l2_name = l2_names[0] if len(l2_names) == 1 else "multiple"
+        self._event_bus.publish(
+            Event(
+                event_type=EventType.L2_PREFETCH_READ_IO_COMPLETED,
+                metadata={
+                    "request_id": request.request_id,
+                    "l2_name": l2_name,
+                    "status": status,
+                    "adapter_count": len(timings),
+                    "loaded_count": loaded_count,
+                    "failed_count": failed_count,
+                    "queue_wait_seconds": queue_wait_seconds,
+                    "read_duration_seconds": read_duration_seconds,
+                },
+            )
+        )
 
     # =========================================================================
     # Unlock helpers

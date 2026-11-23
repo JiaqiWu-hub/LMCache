@@ -149,8 +149,18 @@ auto bind_drain_completions() {
         bools_obj = bools_list;
       }
 
-      // return tuple: (future_id, ok, error, result_bools)
-      result.append(py::make_tuple(c.future_id, c.ok, c.error, bools_obj));
+      py::object read_io_obj = py::none();
+      if (c.has_read_io_timing) {
+        read_io_obj = py::make_tuple(c.batch_submitted_at_seconds,
+                                     c.last_read_started_at_seconds,
+                                     c.last_read_finished_at_seconds);
+      }
+
+      // return tuple: (future_id, ok, error, result_bools, read_io)
+      // read_io is None for non-read operations and connectors that do not
+      // provide batch-level read timing.
+      result.append(
+          py::make_tuple(c.future_id, c.ok, c.error, bools_obj, read_io_obj));
     }
 
     return result;

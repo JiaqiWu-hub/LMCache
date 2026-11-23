@@ -38,6 +38,7 @@ from lmcache.logging import init_logger
 from lmcache.v1.distributed.l2_adapters.base import (
     AdapterUsage,
     L2AdapterInterface,
+    L2ReadIOTiming,
     L2TaskId,
 )
 from lmcache.v1.distributed.l2_adapters.config import (
@@ -377,6 +378,10 @@ class FaultInjectL2Adapter(L2AdapterInterface):
                     len(keys),
                 )
         return bitmap
+
+    def get_load_read_io(self, task_id: L2TaskId) -> L2ReadIOTiming | None:
+        """Delegate read timing to the inner adapter."""
+        return self._inner.get_load_read_io(task_id)
 
     # -- listener / eviction / usage (delegate) -------------------------------
 

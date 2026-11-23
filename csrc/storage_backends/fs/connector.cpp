@@ -252,6 +252,7 @@ void FSConnector::do_batch_get(WorkerFSConn& conn, const Request& req) {
               req.keys[i].c_str(), e.what());
     }
     const auto finished_at = Clock::now();
+    req.batch->record_read_io(started_at, finished_at);
     record_io_sample(false, req.buf_lens[i], submitted_at, started_at,
                      finished_at, ok);
   }

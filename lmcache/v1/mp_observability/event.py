@@ -65,6 +65,9 @@ class EventType(Enum):
     # successfully loaded object sizes for that adapter task.
     L2_LOAD_TASK_SUBMITTED = "l2.load_task.submitted"
     L2_LOAD_TASK_COMPLETED = "l2.load_task.completed"
+    # Request-level SSD read envelope across all adapters in one prefetch
+    # load plan. Emitted once per request when complete timing is available.
+    L2_PREFETCH_READ_IO_COMPLETED = "l2.prefetch.read_io.completed"
 
     # L2 Eviction Controller events
     L2_KEYS_EVICTED = "l2.keys.evicted"

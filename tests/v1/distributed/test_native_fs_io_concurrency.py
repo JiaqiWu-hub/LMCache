@@ -69,9 +69,14 @@ def test_read_concurrency_peak(client: Any) -> None:
     get_task_id = client.submit_batch_get([_KEY], [memoryview(read_buffer)])
     get_completions = _wait_for_completion(client)
 
-    assert any(
-        completion[0] == get_task_id and completion[1] for completion in get_completions
+    completion = next(
+        completion
+        for completion in get_completions
+        if completion[0] == get_task_id and completion[1]
     )
+    assert len(completion) == 5
+    submitted_at, last_started_at, last_finished_at = completion[4]
+    assert submitted_at <= last_started_at <= last_finished_at
     assert read_buffer == payload
     assert client.get_io_inflight_counts() == (0, 0)
     assert client.drain_io_peak_counts()[0] >= 1

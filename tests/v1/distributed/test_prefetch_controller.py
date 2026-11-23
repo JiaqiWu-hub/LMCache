@@ -38,7 +38,10 @@ from lmcache.v1.distributed.l2_adapters.mock_l2_adapter import (
     MockL2Adapter,
     MockL2AdapterConfig,
 )
+from lmcache.v1.distributed.l2_adapters.base import L2ReadIOTiming
 from lmcache.v1.distributed.storage_controllers.prefetch_controller import (
+    InFlightPrefetchRequest,
+    PrefetchPhase,
     PrefetchController,
     build_trim_mask,
     merge_bitmaps,
@@ -50,6 +53,7 @@ from lmcache.v1.distributed.storage_controllers.store_policy import (
     AdapterDescriptor,
 )
 from lmcache.v1.memory_management import MemoryObjMetadata, TensorMemoryObj
+from lmcache.v1.mp_observability.event import EventType
 from tests.v1.distributed.utils import should_use_lazy_alloc
 
 if not torch_dev.is_available():
@@ -802,6 +806,75 @@ class TestMaxInFlight:
 
         ctrl.stop()
         adapter.close()
+
+
+class TestRequestReadIOMetrics:
+    """Request-level SSD read timing across multiple adapters."""
+
+    def test_publishes_global_read_envelope(self) -> None:
+        class CapturingBus:
+            def __init__(self) -> None:
+                self.events = []
+
+            def publish(self, event) -> None:
+                self.events.append(event)
+
+        bus = CapturingBus()
+        ctrl = PrefetchController.__new__(PrefetchController)
+        ctrl._event_bus = bus  # type: ignore[attr-defined]
+        ctrl._adapter_descriptors = {  # type: ignore[attr-defined]
+            0: make_descriptor(0),
+            1: make_descriptor(1),
+        }
+        request = InFlightPrefetchRequest(
+            request_id=7,
+            keys=[make_object_key(0), make_object_key(1)],
+            phase=PrefetchPhase.PLAN_AND_LOAD,
+            load_plan={0: Bitmap(1), 1: Bitmap(1)},
+            load_read_io_by_adapter={
+                0: L2ReadIOTiming(10.0, 12.0, 17.0),
+                1: L2ReadIOTiming(11.0, 15.0, 20.0),
+            },
+        )
+
+        ctrl._publish_request_read_io(request, loaded_count=2, failed_count=0)
+
+        assert len(bus.events) == 1
+        event = bus.events[0]
+        assert event.event_type is EventType.L2_PREFETCH_READ_IO_COMPLETED
+        assert event.metadata["queue_wait_seconds"] == pytest.approx(5.0)
+        assert event.metadata["read_duration_seconds"] == pytest.approx(5.0)
+        assert event.metadata["adapter_count"] == 2
+        assert event.metadata["status"] == "success"
+
+    def test_skips_incomplete_adapter_timing(self) -> None:
+        class CapturingBus:
+            def __init__(self) -> None:
+                self.events = []
+
+            def publish(self, event) -> None:
+                self.events.append(event)
+
+        bus = CapturingBus()
+        ctrl = PrefetchController.__new__(PrefetchController)
+        ctrl._event_bus = bus  # type: ignore[attr-defined]
+        ctrl._adapter_descriptors = {  # type: ignore[attr-defined]
+            0: make_descriptor(0),
+            1: make_descriptor(1),
+        }
+        request = InFlightPrefetchRequest(
+            request_id=8,
+            keys=[make_object_key(0), make_object_key(1)],
+            phase=PrefetchPhase.PLAN_AND_LOAD,
+            load_plan={0: Bitmap(1), 1: Bitmap(1)},
+            load_read_io_by_adapter={
+                0: L2ReadIOTiming(10.0, 12.0, 17.0),
+            },
+        )
+
+        ctrl._publish_request_read_io(request, loaded_count=2, failed_count=0)
+
+        assert bus.events == []
 
 
 # =============================================================================

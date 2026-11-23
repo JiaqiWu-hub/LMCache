@@ -10,6 +10,7 @@ C++ IStorageConnector interface, so no Redis or C++ build is needed.
 import ctypes
 import select
 import threading
+import time
 
 # Third Party
 import pytest
@@ -45,7 +46,8 @@ class MockNativeConnector:
       - submit_batch_get(keys, memoryviews) -> int
       - submit_batch_set(keys, memoryviews) -> int
       - submit_batch_exists(keys) -> int
-      - drain_completions() -> list[tuple[int, bool, str, list[bool] | None]]
+      - drain_completions() -> list[tuple[int, bool, str, list[bool] | None,
+                                               tuple[float, float, float] | None]]
       - close()
     """
 
@@ -53,7 +55,7 @@ class MockNativeConnector:
         self._efd = create_event_notifier()
         self._store: dict[str, bytes] = {}
         self._next_id = 1
-        self._completions: list[tuple[int, bool, str, list[bool] | None]] = []
+        self._completions: list[tuple] = []
         self._lock = threading.Lock()
         self._closed = False
         self._io_inflight_counts = (0, 0)
@@ -81,8 +83,10 @@ class MockNativeConnector:
             fid = self._next_id
             self._next_id += 1
 
+        submitted_at = time.monotonic()
         try:
             all_ok = True
+            last_started_at = submitted_at
             for key, mv in zip(keys, memoryviews, strict=False):
                 data = self._store.get(key)
                 if data is None:
@@ -96,7 +100,15 @@ class MockNativeConnector:
                     ctypes.addressof(ctypes.c_char.from_buffer(mv))
                 )
                 ctypes.memmove(dest_ptr, data, len(data))
-            self._push_completion(fid, all_ok, "", None)
+                last_started_at = time.monotonic()
+            finished_at = time.monotonic()
+            self._push_completion(
+                fid,
+                all_ok,
+                "",
+                None,
+                (submitted_at, last_started_at, finished_at),
+            )
         except Exception as e:
             self._push_completion(fid, False, str(e), None)
 
@@ -165,10 +177,18 @@ class MockNativeConnector:
             self._efd.close()
 
     def _push_completion(
-        self, fid: int, ok: bool, error: str, result_bools: list[bool] | None
+        self,
+        fid: int,
+        ok: bool,
+        error: str,
+        result_bools: list[bool] | None,
+        read_io: tuple[float, float, float] | None = None,
     ):
         with self._lock:
-            self._completions.append((fid, ok, error, result_bools))
+            completion = [fid, ok, error, result_bools]
+            if read_io is not None:
+                completion.append(read_io)
+            self._completions.append(tuple(completion))
         # Signal the eventfd
         try:
             self._efd.notify()
@@ -718,6 +738,30 @@ class TestLoadInterface:
 
     def test_query_unknown_task_returns_none(self, adapter):
         assert adapter.query_load_result(99999) is None
+
+    def test_load_returns_batch_read_io_timing(self, adapter):
+        key = create_object_key(1)
+        store_obj = create_memory_obj(size=64, fill_value=1.0)
+        load_obj = create_memory_obj(size=64, fill_value=0.0)
+        store_fd = adapter.get_store_event_fd()
+        load_fd = adapter.get_load_event_fd()
+
+        adapter.submit_store_task([key], [store_obj])
+        wait_for_event_fd(store_fd, timeout=5.0)
+        adapter.pop_completed_store_tasks()
+
+        task_id = adapter.submit_load_task([key], [load_obj])
+        wait_for_event_fd(load_fd, timeout=5.0)
+        assert adapter.query_load_result(task_id) is not None
+
+        timing = adapter.get_load_read_io(task_id)
+        assert timing is not None
+        assert (
+            timing.batch_submitted_at_seconds
+            <= timing.last_started_at_seconds
+            <= timing.last_finished_at_seconds
+        )
+        assert adapter.get_load_read_io(task_id) is None
 
 
 # =============================================================================

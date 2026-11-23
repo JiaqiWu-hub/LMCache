@@ -81,3 +81,40 @@ def test_omits_zero_size_sample_from_size_histogram() -> None:
     assert len(queue_wait.records) == 1
     assert len(service.records) == 1
     assert size.records == []
+
+
+def test_records_request_level_read_metrics() -> None:
+    subscriber = L2IOSubscriber.__new__(L2IOSubscriber)
+    queue_wait = _RecordingHistogram()
+    read_duration = _RecordingHistogram()
+    subscriber._request_read_queue_wait_hist = queue_wait
+    subscriber._request_read_duration_hist = read_duration
+
+    subscriber._on_request_read_io(
+        Event(
+            event_type=EventType.L2_PREFETCH_READ_IO_COMPLETED,
+            metadata={
+                "l2_name": "fs_native",
+                "status": "success",
+                "adapter_count": 2,
+                "queue_wait_seconds": 0.12,
+                "read_duration_seconds": 0.34,
+            },
+        )
+    )
+
+    attrs = {
+        "l2_name": "fs_native",
+        "status": "success",
+        "adapter_count": 2,
+    }
+    assert queue_wait.records == [(0.12, attrs)]
+    assert read_duration.records == [(0.34, attrs)]
+
+
+def test_subscribes_to_request_level_read_event() -> None:
+    subscriber = L2IOSubscriber.__new__(L2IOSubscriber)
+    assert (
+        subscriber.get_subscriptions()[EventType.L2_PREFETCH_READ_IO_COMPLETED]
+        == subscriber._on_request_read_io
+    )

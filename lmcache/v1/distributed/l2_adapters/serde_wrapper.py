@@ -45,6 +45,7 @@ from lmcache.v1.distributed.l1_manager import L1Manager
 from lmcache.v1.distributed.l2_adapters.base import (
     AdapterUsage,
     L2AdapterInterface,
+    L2ReadIOTiming,
     L2TaskId,
 )
 from lmcache.v1.distributed.serde import (
@@ -133,6 +134,7 @@ class SerdeL2AdapterWrapper(L2AdapterInterface):
         # User-visible completion queues (drained by controller polls).
         self._completed_store: dict[L2TaskId, L2StoreResult] = {}
         self._completed_load: dict[L2TaskId, Bitmap] = {}
+        self._completed_load_io: dict[L2TaskId, L2ReadIOTiming] = {}
 
         self._stop_flag = threading.Event()
         self._thread = threading.Thread(
@@ -295,6 +297,11 @@ class SerdeL2AdapterWrapper(L2AdapterInterface):
         with self._lock:
             return self._completed_load.pop(task_id, None)
 
+    def get_load_read_io(self, task_id: L2TaskId) -> L2ReadIOTiming | None:
+        """Forward the inner adapter's read timing for the wrapped task."""
+        with self._lock:
+            return self._completed_load_io.pop(task_id, None)
+
     # ------------------------------------------------------------------
     # Eviction / metadata / listeners (delegate to inner)
     # ------------------------------------------------------------------
@@ -372,6 +379,7 @@ class SerdeL2AdapterWrapper(L2AdapterInterface):
                 write_locked.extend(load.temp_keys)
             self._store_tasks.clear()
             self._load_tasks.clear()
+            self._completed_load_io.clear()
             self._serde_to_store.clear()
             self._inner_to_store.clear()
             self._inner_to_load.clear()
@@ -512,11 +520,14 @@ class SerdeL2AdapterWrapper(L2AdapterInterface):
             bitmap = self._inner.query_load_result(inner_id)
             if bitmap is None:
                 continue
+            read_io = self._inner.get_load_read_io(inner_id)
             with self._lock:
                 wrapped_id = self._inner_to_load.pop(inner_id, None)
                 state = (
                     self._load_tasks.get(wrapped_id) if wrapped_id is not None else None
                 )
+                if wrapped_id is not None and state is not None and read_io is not None:
+                    self._completed_load_io[wrapped_id] = read_io
             if wrapped_id is None or state is None:
                 continue
 

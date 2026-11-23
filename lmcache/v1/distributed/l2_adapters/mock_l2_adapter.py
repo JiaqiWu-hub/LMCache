@@ -22,7 +22,11 @@ if TYPE_CHECKING:
 from lmcache.logging import init_logger
 from lmcache.native_storage_ops import Bitmap
 from lmcache.v1.distributed.internal_api import L2StoreResult
-from lmcache.v1.distributed.l2_adapters.base import L2AdapterInterface, L2TaskId
+from lmcache.v1.distributed.l2_adapters.base import (
+    L2AdapterInterface,
+    L2ReadIOTiming,
+    L2TaskId,
+)
 from lmcache.v1.distributed.l2_adapters.config import (
     L2AdapterConfigBase,
     register_l2_adapter_type,
@@ -129,6 +133,7 @@ class MockL2Adapter(L2AdapterInterface):
         self._completed_store_tasks: dict[L2TaskId, L2StoreResult] = {}
         self._completed_lookup_tasks: dict[L2TaskId, Bitmap] = {}
         self._completed_load_tasks: dict[L2TaskId, Bitmap] = {}
+        self._completed_load_io: dict[L2TaskId, L2ReadIOTiming] = {}
         self._lock = threading.Lock()  # lock for all shared state
 
         # Asyncio event loop running in a background thread
@@ -235,9 +240,11 @@ class MockL2Adapter(L2AdapterInterface):
         with self._lock:
             task_id = self._get_next_task_id()
 
+        submitted_at = time.monotonic()
         # Schedule the load operation in the event loop thread
         asyncio.run_coroutine_threadsafe(
-            self._execute_load_in_loop(keys, objects, task_id), self._loop
+            self._execute_load_in_loop(keys, objects, task_id, submitted_at),
+            self._loop,
         )
 
         return task_id
@@ -245,6 +252,10 @@ class MockL2Adapter(L2AdapterInterface):
     def query_load_result(self, task_id: L2TaskId) -> Bitmap | None:
         with self._lock:
             return self._completed_load_tasks.pop(task_id, None)
+
+    def get_load_read_io(self, task_id: L2TaskId) -> L2ReadIOTiming | None:
+        with self._lock:
+            return self._completed_load_io.pop(task_id, None)
 
     def close(self):
         # Stop the event loop and wait for the thread to finish
@@ -471,6 +482,7 @@ class MockL2Adapter(L2AdapterInterface):
         keys: list[ObjectKey],
         objects: list[MemoryObj],
         task_id: L2TaskId,
+        submitted_at: float,
     ) -> None:
         """
         Execute the load operation in the event loop thread.
@@ -479,11 +491,14 @@ class MockL2Adapter(L2AdapterInterface):
         bitmap = Bitmap(len(keys))
         total_bytes = 0
         accessed_keys: list[ObjectKey] = []
+        last_started_at = submitted_at
+        last_finished_at = submitted_at
         start = time.perf_counter()
 
         for i, key in enumerate(keys):
             if key not in self._memory_objects:
                 continue
+            last_started_at = time.monotonic()
             # load data into the provided memory object
             obj = self._memory_objects[key]
             src_tensor = obj.tensor
@@ -503,10 +518,17 @@ class MockL2Adapter(L2AdapterInterface):
         delay_seconds = max(delay_seconds, 0)  # Ensure non-negative delay
 
         await asyncio.sleep(delay_seconds)
+        last_finished_at = time.monotonic()
         if accessed_keys:
             self._notify_keys_accessed(accessed_keys)
         with self._lock:
             self._completed_load_tasks[task_id] = bitmap
+            if accessed_keys:
+                self._completed_load_io[task_id] = L2ReadIOTiming(
+                    batch_submitted_at_seconds=submitted_at,
+                    last_started_at_seconds=last_started_at,
+                    last_finished_at_seconds=last_finished_at,
+                )
         self._signal_load_event()
 
 

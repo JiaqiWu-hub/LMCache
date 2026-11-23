@@ -46,6 +46,26 @@ struct BatchState {
   // to report queue wait without changing batch scheduling.
   std::chrono::steady_clock::time_point submitted_at;
 
+  // Read I/O envelope for the batch. Multiple tiles can execute concurrently,
+  // so request-level metrics need the latest read start and finish rather than
+  // the completion order of individual objects.
+  void record_read_io(std::chrono::steady_clock::time_point started_at,
+                      std::chrono::steady_clock::time_point finished_at) {
+    std::lock_guard<std::mutex> lk(read_io_mu);
+    if (!read_io_observed || started_at > last_read_started_at) {
+      last_read_started_at = started_at;
+    }
+    if (!read_io_observed || finished_at > last_read_finished_at) {
+      last_read_finished_at = finished_at;
+    }
+    read_io_observed = true;
+  }
+
+  std::mutex read_io_mu;
+  bool read_io_observed = false;
+  std::chrono::steady_clock::time_point last_read_started_at;
+  std::chrono::steady_clock::time_point last_read_finished_at;
+
   std::mutex err_mu;
   std::string first_error;
 
@@ -103,6 +123,14 @@ struct Completion {
   std::vector<uint8_t> result_bytes;
 
   std::string error;
+
+  // Absolute steady-clock timestamps for read batches. They are comparable
+  // across connectors in the same process and let the prefetch controller
+  // aggregate a request-level envelope across adapters.
+  bool has_read_io_timing = false;
+  double batch_submitted_at_seconds = 0.0;
+  double last_read_started_at_seconds = 0.0;
+  double last_read_finished_at_seconds = 0.0;
 };
 
 // One logical object I/O observed by a connector worker. The sample carries

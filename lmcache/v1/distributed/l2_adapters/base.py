@@ -34,6 +34,25 @@ _EMPTY_BY_CACHE_SALT: Mapping[str, int] = MappingProxyType({})
 
 
 @dataclass(frozen=True)
+class L2ReadIOTiming:
+    """Batch-level timing envelope for a completed L2 read task.
+
+    Timestamps are absolute ``time.monotonic()``-compatible seconds. Adapters
+    that wrap native connectors forward the connector's steady-clock values;
+    all timestamps used in one prefetch request must share the same clock.
+
+    Attributes:
+        batch_submitted_at_seconds: When the read batch was submitted.
+        last_started_at_seconds: Latest individual object read start.
+        last_finished_at_seconds: Latest individual object read finish.
+    """
+
+    batch_submitted_at_seconds: float
+    last_started_at_seconds: float
+    last_finished_at_seconds: float
+
+
+@dataclass(frozen=True)
 class AdapterUsage:
     """Unified usage report for an L2 adapter.
 
@@ -351,6 +370,23 @@ class L2AdapterInterface(ABC):
             None is returned when the load task is not completed.
         """
         pass
+
+    def get_load_read_io(self, task_id: L2TaskId) -> L2ReadIOTiming | None:
+        """Return batch-level read timing for a completed load task.
+
+        This is an optional capability. The default implementation returns
+        ``None`` so adapters without native read instrumentation keep their
+        existing behavior. Adapters that support it return timing once per
+        task, matching the one-shot semantics of :meth:`query_load_result`.
+
+        Args:
+            task_id: Task returned by :meth:`submit_load_task`.
+
+        Returns:
+            The completed task's read timing, or ``None`` if timing is
+            unavailable or has already been consumed.
+        """
+        return None
 
     #####################
     # Listener Interface

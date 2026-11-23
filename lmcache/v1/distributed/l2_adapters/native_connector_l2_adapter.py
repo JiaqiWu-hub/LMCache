@@ -33,6 +33,7 @@ from lmcache.v1.distributed.api import MemoryLayoutDesc, ObjectKey
 from lmcache.v1.distributed.internal_api import L2StoreResult
 from lmcache.v1.distributed.l2_adapters.base import (
     L2AdapterInterface,
+    L2ReadIOTiming,
     L2TaskId,
 )
 from lmcache.v1.memory_management import MemoryObj
@@ -94,7 +95,7 @@ class NativeConnectorL2Adapter(L2AdapterInterface):
       - submit_batch_set(keys, memoryviews) -> int
       - submit_batch_exists(keys) -> int
       - drain_completions()
-          -> list[tuple[int, bool, str, list[bool]|None]]
+          -> list[tuple[int, bool, str, list[bool]|None, tuple[float, ...]|None]]
       - close()
     """
 
@@ -139,6 +140,7 @@ class NativeConnectorL2Adapter(L2AdapterInterface):
         self._completed_stores: dict[L2TaskId, L2StoreResult] = {}
         self._completed_lookups: dict[L2TaskId, Bitmap] = {}
         self._completed_loads: dict[L2TaskId, Bitmap] = {}
+        self._completed_load_io: dict[L2TaskId, L2ReadIOTiming] = {}
 
         # Client-side lock tracking (refcount per key)
         self._locked_keys: dict[ObjectKey, int] = defaultdict(int)
@@ -294,6 +296,11 @@ class NativeConnectorL2Adapter(L2AdapterInterface):
     def query_load_result(self, task_id: L2TaskId) -> Bitmap | None:
         with self._lock:
             return self._completed_loads.pop(task_id, None)
+
+    def get_load_read_io(self, task_id: L2TaskId) -> L2ReadIOTiming | None:
+        """Return and consume the batch-level read timing for ``task_id``."""
+        with self._lock:
+            return self._completed_load_io.pop(task_id, None)
 
     # ---------------------------------------------------------------
     # Eviction Interface
@@ -465,12 +472,14 @@ class NativeConnectorL2Adapter(L2AdapterInterface):
             delete_done_events: list[threading.Event] = []
 
             with self._lock:
-                for (
-                    future_id,
-                    ok,
-                    error,
-                    result_bools,
-                ) in completions:
+                for completion in completions:
+                    (
+                        future_id,
+                        ok,
+                        error,
+                        result_bools,
+                        *timing,
+                    ) = completion
                     fid = int(future_id)
                     entry = self._pending_ops.pop(fid, None)
                     if entry is None:
@@ -540,6 +549,13 @@ class NativeConnectorL2Adapter(L2AdapterInterface):
                                 loaded_keys.extend(lookup_keys)
                         keys_accessed.extend(loaded_keys)
                         self._completed_loads[task_id] = bitmap
+                        if timing and timing[0] is not None:
+                            submitted_at, last_started_at, last_finished_at = timing[0]
+                            self._completed_load_io[task_id] = L2ReadIOTiming(
+                                batch_submitted_at_seconds=float(submitted_at),
+                                last_started_at_seconds=float(last_started_at),
+                                last_finished_at_seconds=float(last_finished_at),
+                            )
                         self._load_efd.notify()
 
                     elif op_type == self._OP_DELETE:

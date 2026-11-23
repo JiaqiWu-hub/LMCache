@@ -92,6 +92,23 @@ On the failure path of `L2_STORE_COMPLETED`, `key_count_per_salt` is absent
 | `L2_PREFETCH_LOAD_COMPLETED` | `request_id`, `loaded_count`, `failed_count`, `key_count_per_salt` | `int`, `int`, `int`, `dict[str, int]` |
 | `L2_LOAD_TASK_SUBMITTED` | `request_id`, `adapter_index`, `task_id`, `l2_name`, `key_count`, `total_bytes` | `int`, `int`, `int`, `str`, `int`, `int` |
 | `L2_LOAD_TASK_COMPLETED` | `request_id`, `adapter_index`, `task_id`, `l2_name` | `int`, `int`, `int`, `str` |
+| `L2_PREFETCH_READ_IO_COMPLETED` | `request_id`, `l2_name`, `status`, `adapter_count`, `loaded_count`, `failed_count`, `queue_wait_seconds`, `read_duration_seconds` | `int`, `str`, `str`, `int`, `int`, `int`, `float`, `float` |
+
+`L2_PREFETCH_READ_IO_COMPLETED` fires once for a prefetch request after all
+load-plan adapters report native read timing. For adapter `i`, let `submit_i`
+be its native batch submission time, `start_i` the latest object read start in
+that batch, and `finish_i` the latest object read finish. The request-level
+values are:
+
+```text
+queue_wait_seconds = max_i(start_i) - min_i(submit_i)
+read_duration_seconds = max_i(finish_i) - max_i(start_i)
+```
+
+The event is not emitted when any load-plan adapter lacks timing, because a
+partial envelope would understate the request's queue or read window.
+`status` is `success`, `partial`, or `failed`; `l2_name` is the single adapter
+type name when all timed adapters share one type, otherwise `multiple`.
 
 `key_count_per_salt` on `L2_PREFETCH_LOOKUP_SUBMITTED`,
 `L2_PREFETCH_LOAD_SUBMITTED`, and `L2_PREFETCH_LOAD_COMPLETED` enables
