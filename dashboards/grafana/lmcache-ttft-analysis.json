@@ -3210,7 +3210,7 @@
               },
               "editorMode": "code",
               "expr": "sum by (service_name) (lmcache_mp_l1_usage_ratio{service_name=~\"$service_name\"})",
-              "legendFormat": "{{service_name}} 使用率",
+              "legendFormat": "{{service_name}} 内存LRU使用率",
               "range": true,
               "refId": "A"
             }
@@ -3269,5 +3269,5 @@
   "timezone": "Asia/Shanghai",
   "title": "LMCache_TTFT_Analysis",
   "uid": "ttft-analysis",
-  "version": 124
+  "version": 125
 }
