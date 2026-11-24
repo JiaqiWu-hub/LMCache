@@ -1,6 +1,19 @@
 {
   "annotations": {
-    "list": []
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
   },
   "description": "TTFT Analysis：分位数和均值均使用 vLLM 实际 time_to_first_token 统计。",
   "editable": true,
@@ -30,14 +43,58 @@
       "description": "TTFT、请求排队、Prefill 和入队前延迟的平均值。入队前延迟按 TTFT - Queue - Prefill 计算，负值按 0 展示；四条曲线均由对应 histogram 的 _sum / _count 计算，指标单位均为秒。",
       "fieldConfig": {
         "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
           "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "耗时",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
             "lineWidth": 1,
-            "showPoints": "never"
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           },
           "decimals": 3,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
           "unit": "s"
         },
         "overrides": []
@@ -51,15 +108,18 @@
       "id": 1001,
       "options": {
         "legend": {
+          "calcs": [],
           "displayMode": "list",
           "placement": "bottom",
           "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "desc"
         }
       },
+      "pluginVersion": "12.2.1",
       "targets": [
         {
           "expr": "sum(rate(vllm:time_to_first_token_seconds_sum{service_name=~\"$service_name\"}[$__rate_interval])) / sum(rate(vllm:time_to_first_token_seconds_count{service_name=~\"$service_name\"}[$__rate_interval]))",
@@ -93,14 +153,58 @@
       "description": "TTFT、请求排队和 Prefill 的 P99。使用 histogram_quantile 计算，精度受 histogram bucket 边界影响；指标单位均为秒。",
       "fieldConfig": {
         "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
           "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "耗时",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
             "lineWidth": 1,
-            "showPoints": "never"
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           },
           "decimals": 3,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
           "unit": "s"
         },
         "overrides": []
@@ -114,15 +218,18 @@
       "id": 1002,
       "options": {
         "legend": {
+          "calcs": [],
           "displayMode": "list",
           "placement": "bottom",
           "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "desc"
         }
       },
+      "pluginVersion": "12.2.1",
       "targets": [
         {
           "expr": "histogram_quantile(0.99, sum by (le) (rate(vllm:time_to_first_token_seconds_bucket{service_name=~\"$service_name\"}[$__rate_interval])))",
@@ -151,14 +258,58 @@
       "description": "TTFT、请求排队和 Prefill 的 P99.99。使用 histogram_quantile 计算，精度受 histogram bucket 边界影响；指标单位均为秒。",
       "fieldConfig": {
         "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
           "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
             "axisLabel": "耗时",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
             "lineWidth": 1,
-            "showPoints": "never"
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           },
           "decimals": 3,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
           "unit": "s"
         },
         "overrides": []
@@ -172,15 +323,18 @@
       "id": 1003,
       "options": {
         "legend": {
+          "calcs": [],
           "displayMode": "list",
           "placement": "bottom",
           "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "desc"
         }
       },
+      "pluginVersion": "12.2.1",
       "targets": [
         {
           "expr": "histogram_quantile(0.9999, sum by (le) (rate(vllm:time_to_first_token_seconds_bucket{service_name=~\"$service_name\"}[$__rate_interval])))",
@@ -249,6 +403,7 @@
               "type": "linear"
             },
             "showPoints": "never",
+            "showValues": false,
             "spanNulls": true,
             "stacking": {
               "group": "A",
@@ -265,7 +420,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               }
             ]
           },
@@ -296,6 +451,7 @@
           "sort": "desc"
         }
       },
+      "pluginVersion": "12.2.1",
       "targets": [
         {
           "datasource": {
@@ -519,8 +675,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -610,9 +765,35 @@
               "expr": "sum by (service_name, l2_name) (rate(lmcache_mp_l2_load_duration_seconds_sum{service_name=~\"$service_name\"}[1m]))\n/\nclamp_min(sum by (service_name, l2_name) (rate(lmcache_mp_l2_load_duration_seconds_count{service_name=~\"$service_name\"}[1m])), 1e-9)",
               "hide": false,
               "instant": false,
-              "legendFormat": "{{service_name}} prefetch加载数据 平均值",
+              "legendFormat": "{{service_name}} prefetch加载 平均值",
               "range": true,
               "refId": "E"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "sum by (service_name) (rate(lmcache_mp_prefetch_request_l2_read_queue_wait_duration_seconds_sum{service_name=~\"$service_name\"}[1m]))\n/\nclamp_min(sum by (service_name) (rate(lmcache_mp_prefetch_request_l2_read_queue_wait_duration_seconds_count{service_name=~\"$service_name\"}[1m])), 1e-9)",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} prefetch加载数据排队耗时 平均值",
+              "range": true,
+              "refId": "H"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "sum by (service_name) (rate(lmcache_mp_prefetch_request_l2_read_duration_seconds_sum{service_name=~\"$service_name\"}[1m]))\n/\nclamp_min(sum by (service_name) (rate(lmcache_mp_prefetch_request_l2_read_duration_seconds_count{service_name=~\"$service_name\"}[1m])), 1e-9)",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} prefetch加载数据耗时 平均值",
+              "range": true,
+              "refId": "I"
             },
             {
               "datasource": {
@@ -694,8 +875,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -785,9 +965,35 @@
               "expr": "histogram_quantile(0.99, sum by (le, service_name, l2_name) (rate(lmcache_mp_l2_load_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
               "hide": false,
               "instant": false,
-              "legendFormat": "{{service_name}} prefetch加载数据 P99",
+              "legendFormat": "{{service_name}} prefetch加载 P99",
               "range": true,
               "refId": "E"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.99, sum by (le, service_name) (rate(lmcache_mp_prefetch_request_l2_read_queue_wait_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} prefetch加载数据排队耗时 P99",
+              "range": true,
+              "refId": "H"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.99, sum by (le, service_name) (rate(lmcache_mp_prefetch_request_l2_read_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} prefetch加载数据耗时 P99",
+              "range": true,
+              "refId": "I"
             },
             {
               "datasource": {
@@ -869,8 +1075,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -960,9 +1165,35 @@
               "expr": "histogram_quantile(0.9999, sum by (le, service_name, l2_name) (rate(lmcache_mp_l2_load_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
               "hide": false,
               "instant": false,
-              "legendFormat": "{{service_name}} prefetch加载数据 P9999",
+              "legendFormat": "{{service_name}} prefetch加载 P9999",
               "range": true,
               "refId": "E"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.9999, sum by (le, service_name) (rate(lmcache_mp_prefetch_request_l2_read_queue_wait_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} prefetch加载数据排队耗时 P9999",
+              "range": true,
+              "refId": "H"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.9999, sum by (le, service_name) (rate(lmcache_mp_prefetch_request_l2_read_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} prefetch加载数据耗时 P9999",
+              "range": true,
+              "refId": "I"
             },
             {
               "datasource": {
@@ -1044,8 +1275,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -1157,8 +1387,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -1270,8 +1499,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -1383,8 +1611,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -1535,8 +1762,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -1687,8 +1913,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -1799,7 +2024,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 88
+        "y": 28
       },
       "id": 400,
       "panels": [
@@ -1853,8 +2078,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -1988,8 +2212,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -2123,8 +2346,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -2329,7 +2551,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 89
+        "y": 29
       },
       "id": 1200,
       "panels": [
@@ -2383,8 +2605,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -2482,8 +2703,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -2581,8 +2801,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -2706,8 +2925,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -2745,7 +2963,7 @@
                 "uid": "cf5zm84e41v5se"
               },
               "editorMode": "code",
-          "expr": "(sum by (service_name) (increase(lmcache_mp_l2_prefetch_load_completed_chunks_total{service_name=~\"$service_name\"}[1m])) or (sum by (service_name) (increase(lmcache_mp_l2_prefetch_failure_chunks_total{service_name=~\"$service_name\"}[1m])) * 0)) / clamp_min((sum by (service_name) (increase(lmcache_mp_l2_prefetch_load_completed_chunks_total{service_name=~\"$service_name\"}[1m])) or (sum by (service_name) (increase(lmcache_mp_l2_prefetch_failure_chunks_total{service_name=~\"$service_name\"}[1m])) * 0)) + (sum by (service_name) (increase(lmcache_mp_l2_prefetch_failure_chunks_total{service_name=~\"$service_name\"}[1m])) or (sum by (service_name) (increase(lmcache_mp_l2_prefetch_load_completed_chunks_total{service_name=~\"$service_name\"}[1m])) * 0)), 1e-9)",
+              "expr": "(sum by (service_name) (increase(lmcache_mp_l2_prefetch_load_completed_chunks_total{service_name=~\"$service_name\"}[1m])) or (sum by (service_name) (increase(lmcache_mp_l2_prefetch_failure_chunks_total{service_name=~\"$service_name\"}[1m])) * 0)) / clamp_min((sum by (service_name) (increase(lmcache_mp_l2_prefetch_load_completed_chunks_total{service_name=~\"$service_name\"}[1m])) or (sum by (service_name) (increase(lmcache_mp_l2_prefetch_failure_chunks_total{service_name=~\"$service_name\"}[1m])) * 0)) + (sum by (service_name) (increase(lmcache_mp_l2_prefetch_failure_chunks_total{service_name=~\"$service_name\"}[1m])) or (sum by (service_name) (increase(lmcache_mp_l2_prefetch_load_completed_chunks_total{service_name=~\"$service_name\"}[1m])) * 0)), 1e-9)",
               "instant": false,
               "legendFormat": "{{service_name}} prefetch读取成功率",
               "range": true,
@@ -2757,7 +2975,7 @@
                 "uid": "cf5zm84e41v5se"
               },
               "editorMode": "code",
-          "expr": "(sum by (service_name) (increase(lmcache_mp_l2_prefetch_failure_chunks_total{service_name=~\"$service_name\"}[1m])) or (sum by (service_name) (increase(lmcache_mp_l2_prefetch_load_completed_chunks_total{service_name=~\"$service_name\"}[1m])) * 0)) / clamp_min((sum by (service_name) (increase(lmcache_mp_l2_prefetch_load_completed_chunks_total{service_name=~\"$service_name\"}[1m])) or (sum by (service_name) (increase(lmcache_mp_l2_prefetch_failure_chunks_total{service_name=~\"$service_name\"}[1m])) * 0)) + (sum by (service_name) (increase(lmcache_mp_l2_prefetch_failure_chunks_total{service_name=~\"$service_name\"}[1m])) or (sum by (service_name) (increase(lmcache_mp_l2_prefetch_load_completed_chunks_total{service_name=~\"$service_name\"}[1m])) * 0)), 1e-9)",
+              "expr": "(sum by (service_name) (increase(lmcache_mp_l2_prefetch_failure_chunks_total{service_name=~\"$service_name\"}[1m])) or (sum by (service_name) (increase(lmcache_mp_l2_prefetch_load_completed_chunks_total{service_name=~\"$service_name\"}[1m])) * 0)) / clamp_min((sum by (service_name) (increase(lmcache_mp_l2_prefetch_load_completed_chunks_total{service_name=~\"$service_name\"}[1m])) or (sum by (service_name) (increase(lmcache_mp_l2_prefetch_failure_chunks_total{service_name=~\"$service_name\"}[1m])) * 0)) + (sum by (service_name) (increase(lmcache_mp_l2_prefetch_failure_chunks_total{service_name=~\"$service_name\"}[1m])) or (sum by (service_name) (increase(lmcache_mp_l2_prefetch_load_completed_chunks_total{service_name=~\"$service_name\"}[1m])) * 0)), 1e-9)",
               "instant": false,
               "legendFormat": "{{service_name}} prefetch读取失败率",
               "range": true,
@@ -2777,7 +2995,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 90
+        "y": 30
       },
       "id": 500,
       "panels": [
@@ -2831,8 +3049,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -2954,8 +3171,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -3010,18 +3226,13 @@
   "preload": false,
   "refresh": "10s",
   "schemaVersion": 42,
-  "tags": [
-    "vllm",
-    "lmcache",
-    "ttft"
-  ],
+  "tags": [],
   "templating": {
     "list": [
       {
         "allValue": ".*",
         "current": {
-          "selected": true,
-          "text": "All",
+          "text": "$__all",
           "value": "$__all"
         },
         "includeAll": true,
@@ -3029,11 +3240,6 @@
         "multi": true,
         "name": "service_name",
         "options": [
-          {
-            "selected": true,
-            "text": "All",
-            "value": "$__all"
-          },
           {
             "selected": false,
             "text": "vllm80",
@@ -3051,9 +3257,6 @@
           }
         ],
         "query": "vllm80,vllm81,vllm85",
-        "refresh": 0,
-        "regex": "",
-        "sort": 1,
         "type": "custom"
       }
     ]
@@ -3066,6 +3269,5 @@
   "timezone": "Asia/Shanghai",
   "title": "LMCache_TTFT_Analysis",
   "uid": "ttft-analysis",
-  "version": 113,
-  "weekStart": ""
+  "version": 122
 }
