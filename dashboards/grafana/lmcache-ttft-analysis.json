@@ -822,7 +822,7 @@
               "refId": "G"
             }
           ],
-          "title": "Lookup 分段耗时（平均值）",
+          "title": "异步lookup+prefetch分段耗时（平均值）",
           "type": "timeseries"
         },
         {
@@ -1022,7 +1022,7 @@
               "refId": "G"
             }
           ],
-          "title": "Lookup 分段耗时（P99）",
+          "title": "异步lookup+prefetch分段耗时（P99）",
           "type": "timeseries"
         },
         {
@@ -1222,7 +1222,7 @@
               "refId": "G"
             }
           ],
-          "title": "Lookup 分段耗时（P9999）",
+          "title": "异步lookup+prefetch分段耗时（P9999）",
           "type": "timeseries"
         },
         {
@@ -3269,5 +3269,5 @@
   "timezone": "Asia/Shanghai",
   "title": "LMCache_TTFT_Analysis",
   "uid": "ttft-analysis",
-  "version": 122
+  "version": 124
 }
