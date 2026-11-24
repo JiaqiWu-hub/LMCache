@@ -533,7 +533,7 @@
       "targets": [
         {
           "expr": "sum(rate(vllm:prompt_tokens_total{service_name=~\"$service_name\"}[$__rate_interval]))",
-          "legendFormat": "Prompt Token 总数",
+          "legendFormat": "处理 Prompt Token 速率",
           "refId": "A"
         },
         {
