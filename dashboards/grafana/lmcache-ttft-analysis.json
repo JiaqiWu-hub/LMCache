@@ -533,22 +533,22 @@
       "targets": [
         {
           "expr": "sum(rate(vllm:prompt_tokens_total{service_name=~\"$service_name\"}[$__rate_interval]))",
-          "legendFormat": "处理 Prompt Token 速率",
+          "legendFormat": "Prompt Token 速率",
           "refId": "A"
         },
         {
           "expr": "sum(rate(vllm:prompt_tokens_by_source_total{service_name=~\"$service_name\",source=\"local_cache_hit\"}[$__rate_interval]))",
-          "legendFormat": "GPU 显存命中",
+          "legendFormat": "GPU 显存命中 Token 速率",
           "refId": "B"
         },
         {
           "expr": "sum(rate(vllm:prompt_tokens_by_source_total{service_name=~\"$service_name\",source=\"external_kv_transfer\"}[$__rate_interval]))",
-          "legendFormat": "LMCache 命中",
+          "legendFormat": "LMCache 命中 Token 速率",
           "refId": "C"
         },
         {
           "expr": "sum(rate(vllm:prompt_tokens_by_source_total{service_name=~\"$service_name\",source=\"local_compute\"}[$__rate_interval]))",
-          "legendFormat": "需要计算",
+          "legendFormat": "需要计算的 Token 速率",
           "refId": "D"
         }
       ],
