@@ -3014,7 +3014,7 @@
                 "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
-                "axisLabel": "",
+                "axisLabel": "ops/s",
                 "axisPlacement": "auto",
                 "barAlignment": 0,
                 "barWidthFactor": 0.6,
@@ -3053,7 +3053,7 @@
                   }
                 ]
               },
-              "unit": "suffix:chunk/s"
+              "unit": "ops"
             },
             "overrides": []
           },
@@ -3089,7 +3089,7 @@
               "editorMode": "code",
               "expr": "sum by (service_name) (rate(lmcache_mp_l1_write_chunks_total{service_name=~\"$service_name\"}[1m]))",
               "instant": false,
-              "legendFormat": "{{service_name}} 写入速率 (chunk/s)",
+              "legendFormat": "{{service_name}} 写入chunk数",
               "range": true,
               "refId": "A"
             },
@@ -3099,9 +3099,9 @@
                 "uid": "cf5zm84e41v5se"
               },
               "editorMode": "code",
-              "expr": "sum by (service_name) (rate(lmcache_mp_l1_read_chunks_total{service_name=~\"$service_name\"}[1m]))",
+              "expr": "sum by (service_name) (rate(lmcache_mp_l1_evicted_chunks_total{service_name=~\"$service_name\"}[1m]))",
               "instant": false,
-              "legendFormat": "{{service_name}} 读取速率 (chunk/s)",
+              "legendFormat": "{{service_name}} 淘汰chunk数",
               "range": true,
               "refId": "B"
             },
@@ -3111,14 +3111,14 @@
                 "uid": "cf5zm84e41v5se"
               },
               "editorMode": "code",
-              "expr": "sum by (service_name) (rate(lmcache_mp_l1_evicted_chunks_total{service_name=~\"$service_name\"}[1m]))",
+              "expr": "sum by (service_name) (rate(lmcache_mp_l1_read_chunks_total{service_name=~\"$service_name\"}[1m]))",
               "instant": false,
-              "legendFormat": "{{service_name}} 淘汰速率 (chunk/s)",
+              "legendFormat": "{{service_name}} 读取chunk数",
               "range": true,
               "refId": "C"
             }
           ],
-          "title": "内存LRU Chunk速率",
+          "title": "内存LRU Chunk速率（个/s）",
           "type": "timeseries"
         },
         {
