@@ -101,7 +101,7 @@ that batch, and `finish_i` the latest object read finish. The request-level
 values are:
 
 ```text
-queue_wait_seconds = max_i(start_i) - min_i(submit_i)
+queue_wait_seconds = max_i(start_i) - max_i(submit_i)
 read_duration_seconds = max_i(finish_i) - max_i(start_i)
 ```
 

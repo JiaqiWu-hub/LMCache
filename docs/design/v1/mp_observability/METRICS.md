@@ -191,7 +191,7 @@ I/O crossing the collection boundary is not lost.
 | `lmcache_mp.l2_prefetch_load_completed` | `lmcache_mp_l2_prefetch_load_completed_chunks_total` | Counter (attr: `cache_salt`) | `L2_PREFETCH_LOAD_COMPLETED` | `+count` per `cache_salt` via `key_count_per_salt` |
 | `lmcache_mp.l2_load_completed` | `lmcache_mp_l2_load_completed_requests_total` | Counter (attr: `l2_name`) | `L2_LOAD_TASK_COMPLETED` | +1 per event |
 | `lmcache_mp.l2_prefetch_load_bytes` | `lmcache_mp_l2_prefetch_load_bytes_total` | Counter (attr: `l2_name`) | `L2_LOAD_TASK_COMPLETED` | Sum of successfully loaded object sizes from `bytes_loaded` |
-| `lmcache_mp.prefetch_request_l2_read_queue_wait_duration` | `lmcache_mp_prefetch_request_l2_read_queue_wait_duration_seconds` | Histogram (attrs: `l2_name`, `status`, `adapter_count`) | `L2_PREFETCH_READ_IO_COMPLETED` | `max_i(start_i) - min_i(submit_i)`, one sample per request |
+| `lmcache_mp.prefetch_request_l2_read_queue_wait_duration` | `lmcache_mp_prefetch_request_l2_read_queue_wait_duration_seconds` | Histogram (attrs: `l2_name`, `status`, `adapter_count`) | `L2_PREFETCH_READ_IO_COMPLETED` | `max_i(start_i) - max_i(submit_i)`, one sample per request |
 | `lmcache_mp.prefetch_request_l2_read_duration` | `lmcache_mp_prefetch_request_l2_read_duration_seconds` | Histogram (attrs: `l2_name`, `status`, `adapter_count`) | `L2_PREFETCH_READ_IO_COMPLETED` | `max_i(finish_i) - max_i(start_i)`, one sample per request |
 
 **What it answers:** How effective is L2 prefetching? What is the L2 hit rate?
@@ -202,7 +202,7 @@ wall-clock envelope across concurrently executing adapters:
 
 ```text
 queue_wait_req + read_duration_req
-= max_i(finish_i) - min_i(submit_i)
+= max_i(finish_i) - max_i(submit_i)
 ```
 
 They do not include L2 lookup-and-lock, load-plan computation, L1

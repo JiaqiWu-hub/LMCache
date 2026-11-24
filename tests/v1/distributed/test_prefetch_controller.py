@@ -811,7 +811,7 @@ class TestMaxInFlight:
 class TestRequestReadIOMetrics:
     """Request-level SSD read timing across multiple adapters."""
 
-    def test_publishes_global_read_envelope(self) -> None:
+    def test_publishes_global_read_envelope_from_latest_submission(self) -> None:
         class CapturingBus:
             def __init__(self) -> None:
                 self.events = []
@@ -842,7 +842,9 @@ class TestRequestReadIOMetrics:
         assert len(bus.events) == 1
         event = bus.events[0]
         assert event.event_type is EventType.L2_PREFETCH_READ_IO_COMPLETED
-        assert event.metadata["queue_wait_seconds"] == pytest.approx(5.0)
+        # Latest submit is 11.0 and latest start is 15.0. Using the
+        # earliest submit (10.0) would incorrectly report 5.0.
+        assert event.metadata["queue_wait_seconds"] == pytest.approx(4.0)
         assert event.metadata["read_duration_seconds"] == pytest.approx(5.0)
         assert event.metadata["adapter_count"] == 2
         assert event.metadata["status"] == "success"

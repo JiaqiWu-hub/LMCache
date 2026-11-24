@@ -1516,10 +1516,10 @@ class PrefetchController(StorageControllerInterface):
             return
 
         timings = list(request.load_read_io_by_adapter.values())
-        earliest_submit = min(t.batch_submitted_at_seconds for t in timings)
+        latest_submit = max(t.batch_submitted_at_seconds for t in timings)
         latest_start = max(t.last_started_at_seconds for t in timings)
         latest_finish = max(t.last_finished_at_seconds for t in timings)
-        queue_wait_seconds = max(0.0, latest_start - earliest_submit)
+        queue_wait_seconds = max(0.0, latest_start - latest_submit)
         read_duration_seconds = max(0.0, latest_finish - latest_start)
 
         if failed_count == 0:

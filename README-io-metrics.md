@@ -35,7 +35,7 @@ above and must not be reconstructed by aggregating those samples.
 
 | Prometheus name | Description | Labels |
 | --- | --- | --- |
-| `lmcache_mp_prefetch_request_l2_read_queue_wait_duration_seconds` | From the earliest native batch submission to the latest individual object read start. Includes worker queueing and earlier object processing. | `l2_name`, `status`, `adapter_count` |
+| `lmcache_mp_prefetch_request_l2_read_queue_wait_duration_seconds` | From the latest native batch submission across all adapters to the latest individual object read start. Includes worker queueing and earlier object processing after the final adapter batch was submitted. | `l2_name`, `status`, `adapter_count` |
 | `lmcache_mp_prefetch_request_l2_read_duration_seconds` | From the latest individual object read start to the latest individual object read finish. Includes open, read, and close for the remaining concurrent work. | `l2_name`, `status`, `adapter_count` |
 
 For adapter `i`, let `submit_i` be its native batch submission time, `start_i`
@@ -43,11 +43,11 @@ the latest object read start in that batch, and `finish_i` the latest object
 read finish:
 
 ```text
-queue_wait_req = max_i(start_i) - min_i(submit_i)
+queue_wait_req = max_i(start_i) - max_i(submit_i)
 read_duration_req = max_i(finish_i) - max_i(start_i)
 
 queue_wait_req + read_duration_req
-= max_i(finish_i) - min_i(submit_i)
+= max_i(finish_i) - max_i(submit_i)
 ```
 
 The event is emitted once per request only when every load-plan adapter
