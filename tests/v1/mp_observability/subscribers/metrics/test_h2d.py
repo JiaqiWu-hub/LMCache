@@ -16,7 +16,6 @@ from lmcache.v1.mp_observability.subscribers.metrics.h2d import (
 from tests.v1.mp_observability.subscribers.metrics.otel_setup import reader
 
 _CHUNK_DURATION = "lmcache_mp.h2d_chunk_duration"
-_CHUNKS_COMPLETED = "lmcache_mp.h2d_chunks_completed"
 _INFLIGHT_REQUESTS = "lmcache_mp.h2d_inflight_requests"
 _PEAK_REQUESTS = "lmcache_mp.h2d_peak_inflight_requests"
 _INFLIGHT_CHUNKS = "lmcache_mp.h2d_inflight_chunks"
@@ -94,12 +93,31 @@ def _value(
     return total
 
 
+def _histogram_stats(
+    snapshot: dict[str, list[Any]],
+    metric_name: str,
+    **expected_attributes: str,
+) -> tuple[int, float]:
+    count = 0
+    total = 0.0
+    for data_point in snapshot.get(metric_name, []):
+        attributes = {
+            key: str(value) for key, value in dict(data_point.attributes).items()
+        }
+        if all(
+            attributes.get(key) == value for key, value in expected_attributes.items()
+        ):
+            count += data_point.count
+            total += data_point.sum
+    return count, total
+
+
 def _model_attributes(model_name: str) -> dict[str, str]:
     return {"device": "cuda:0", "engine_id": "7", "model_name": model_name}
 
 
 class TestH2DRetrieveMetrics:
-    def test_tracks_request_and_chunk_concurrency_and_weighted_duration(self):
+    def test_tracks_request_and_chunk_concurrency_and_histogram_weight(self):
         subscriber = H2DRetrieveMetricsSubscriber()
         handlers = subscriber.get_subscriptions()
         model_name = "h2d-concurrency-test"
@@ -124,8 +142,9 @@ class TestH2DRetrieveMetrics:
         assert _value(after_end, _INFLIGHT_CHUNKS, **attributes) == 2
         assert _value(after_end, _PEAK_REQUESTS, **attributes) == 0
         assert _value(after_end, _PEAK_CHUNKS, **attributes) == 0
-        assert _value(after_end, _CHUNK_DURATION, **attributes) == pytest.approx(1.0)
-        assert _value(after_end, _CHUNKS_COMPLETED, **attributes) == 3
+        count, total = _histogram_stats(after_end, _CHUNK_DURATION, **attributes)
+        assert count == 3
+        assert total == pytest.approx(1.0)
 
     def test_missing_num_chunks_is_ignored(self):
         subscriber = H2DRetrieveMetricsSubscriber()
@@ -146,8 +165,9 @@ class TestH2DRetrieveMetrics:
 
         after_end = _snapshot()
         assert _value(after_end, _INFLIGHT_REQUESTS, **attributes) == 0
-        assert _value(after_end, _CHUNKS_COMPLETED, **attributes) == 0
-        assert _value(after_end, _CHUNK_DURATION, **attributes) == 0
+        count, total = _histogram_stats(after_end, _CHUNK_DURATION, **attributes)
+        assert count == 0
+        assert total == 0.0
 
     def test_end_without_start_does_not_go_negative(self):
         subscriber = H2DRetrieveMetricsSubscriber()

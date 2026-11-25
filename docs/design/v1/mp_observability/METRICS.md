@@ -237,8 +237,7 @@ independently executing copy kernels.
 
 | OTel metric name | Prometheus name | Type | Source event | Calculation |
 |---|---|---|---|---|
-| `lmcache_mp.h2d_chunk_duration` | `lmcache_mp_h2d_chunk_duration_seconds_total` | Counter | `MP_RETRIEVE_START` -> `MP_RETRIEVE_END` | `+ (end_ts - start_ts)` per completed retrieve |
-| `lmcache_mp.h2d_chunks_completed` | `lmcache_mp_h2d_chunks_completed_total` | Counter | `MP_RETRIEVE_START` -> `MP_RETRIEVE_END` | `+ num_chunks` per completed retrieve |
+| `lmcache_mp.h2d_chunk_duration` | `lmcache_mp_h2d_chunk_duration_seconds_bucket/_sum/_count` | Histogram | `MP_RETRIEVE_START` -> `MP_RETRIEVE_END` | Record `(end_ts - start_ts) / num_chunks` once per logical chunk |
 | `lmcache_mp.h2d_inflight_requests` | `lmcache_mp_h2d_inflight_requests` | Gauge | `MP_RETRIEVE_START` / `MP_RETRIEVE_END` | Current START-to-END retrieve windows |
 | `lmcache_mp.h2d_peak_inflight_requests` | `lmcache_mp_h2d_peak_inflight_requests` | Gauge | `MP_RETRIEVE_START` | Maximum current request count since the previous collection |
 | `lmcache_mp.h2d_inflight_chunks` | `lmcache_mp_h2d_inflight_chunks` | Gauge | `MP_RETRIEVE_START` / `MP_RETRIEVE_END` | Sum of `num_chunks` for current retrieve windows |
@@ -247,15 +246,25 @@ independently executing copy kernels.
 The time-window average H2D service time per logical chunk is:
 
 ```promql
-rate(lmcache_mp_h2d_chunk_duration_seconds_total[1m])
+rate(lmcache_mp_h2d_chunk_duration_seconds_sum[1m])
 /
-rate(lmcache_mp_h2d_chunks_completed_total[1m])
+rate(lmcache_mp_h2d_chunk_duration_seconds_count[1m])
+```
+
+P99 and P99.99 estimates use the histogram buckets:
+
+```promql
+histogram_quantile(
+  0.99,
+  sum by (le) (rate(lmcache_mp_h2d_chunk_duration_seconds_bucket[1m]))
+)
 ```
 
 The duration is the GPU-stream retrieve window, which includes producer-event
-waiting and all work between START and END. The per-chunk value is therefore an
-average service-time estimate (`window duration / requested chunks`), not a
-histogram of independently timed copy operations.
+waiting and all work between START and END. Each request contributes one
+`window duration / requested chunks` observation per logical chunk. This
+preserves chunk-count weighting and enables histogram quantiles, but it does not
+capture variance between independently timed copies inside the same request.
 
 ---
 

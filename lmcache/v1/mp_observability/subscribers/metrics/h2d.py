@@ -71,20 +71,15 @@ class H2DRetrieveMetricsSubscriber(EventSubscriber):
         self._peak_inflight_chunks: dict[_AttributeKey, int] = {}
 
         meter = metrics.get_meter("lmcache_mp.h2d")
-        self._chunk_duration = meter.create_counter(
+        self._chunk_duration = meter.create_histogram(
             "lmcache_mp.h2d_chunk_duration",
             description=(
-                "Cumulative H2D retrieve-window duration, in seconds. Divide "
-                "its rate by h2d_chunks_completed's rate to obtain the "
-                "time-window average service time per logical chunk."
+                "Histogram of estimated H2D service time per logical chunk in "
+                "seconds. Each completed retrieve contributes num_chunks "
+                "observations of retrieve-window duration / num_chunks, "
+                "preserving chunk weighting but not within-request variance."
             ),
             unit="s",
-        )
-        self._chunks_completed = meter.create_counter(
-            "lmcache_mp.h2d_chunks_completed",
-            description=(
-                "Cumulative logical chunks in completed H2D retrieve windows."
-            ),
         )
         meter.create_observable_gauge(
             "lmcache_mp.h2d_inflight_requests",
@@ -150,7 +145,7 @@ class H2DRetrieveMetricsSubscriber(EventSubscriber):
             self._increment(self._peak_inflight_chunks, attributes, num_chunks)
 
     def _on_retrieve_end(self, event: Event) -> None:
-        """Close one H2D retrieve window and record its chunk-duration weight."""
+        """Close one H2D retrieve window and record per-chunk estimates."""
         key = self._correlation_key(event)
         if key is None:
             return
@@ -170,8 +165,9 @@ class H2DRetrieveMetricsSubscriber(EventSubscriber):
         if duration_s <= 0:
             return
         attributes = dict(retrieve.attributes)
-        self._chunk_duration.add(duration_s, attributes=attributes)
-        self._chunks_completed.add(retrieve.num_chunks, attributes=attributes)
+        per_chunk_duration_s = duration_s / retrieve.num_chunks
+        for _ in range(retrieve.num_chunks):
+            self._chunk_duration.record(per_chunk_duration_s, attributes=attributes)
 
     def _observe_inflight_requests(self, _options: object) -> list[metrics.Observation]:
         """Return current active H2D request counts."""

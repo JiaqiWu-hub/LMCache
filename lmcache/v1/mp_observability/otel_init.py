@@ -53,6 +53,7 @@ _LATENCY_INSTRUMENTS = (
     "lmcache_mp.l2_load_duration",
     "lmcache_mp.l0_l1_load_duration",
     "lmcache_mp.l0_l1_store_duration",
+    "lmcache_mp.h2d_chunk_duration",
     "lmcache_mp.retrieve_total_duration",
     "lmcache_mp.store_total_duration",
     "lmcache_mp.l2_store_duration",
