@@ -1230,7 +1230,7 @@
             "type": "prometheus",
             "uid": "cf5zm84e41v5se"
           },
-          "description": "展示 Get链路总耗时与 H2D耗时的平均耗时。右侧为 P99 和 P9999。",
+          "description": "展示 Get链路总耗时、请求级 H2D耗时，以及按逻辑 chunk 归一化的 H2D平均耗时的平均值。右侧为同一组指标的 P99 和 P9999；chunk级 H2D 当前只有 sum/count，因此不提供分位数。",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1332,6 +1332,19 @@
               "legendFormat": "{{service_name}} 内存 to GPU 平均值",
               "range": true,
               "refId": "B"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "sum by (service_name) (\n  rate(lmcache_mp_h2d_chunk_duration_seconds_total{\n    service_name=~\"$service_name\"\n  }[1m])\n)\n/\nclamp_min(\n  sum by (service_name) (\n    rate(lmcache_mp_h2d_chunks_completed_total{\n      service_name=~\"$service_name\"\n    }[1m])\n  ),\n  1e-9\n)",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} 内存 to GPU耗时(chunk)",
+              "range": true,
+              "refId": "C"
             }
           ],
           "title": "Get链路耗时（平均值）",
@@ -3269,5 +3282,5 @@
   "timezone": "Asia/Shanghai",
   "title": "LMCache_TTFT_Analysis",
   "uid": "ttft-analysis",
-  "version": 125
+  "version": 130
 }
