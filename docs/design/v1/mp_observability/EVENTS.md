@@ -203,13 +203,17 @@ to correlate START/END pairs.
 |---|---|---|
 | `MP_STORE_START` | `device`, `engine_id`, `model_name` | `str`, `int`, `str` |
 | `MP_STORE_END` | `device`, `stored_count`, `engine_id`, `model_name`, `total_bytes`, `num_tokens` | `str`, `int`, `int`, `str`, `int`, `int` |
-| `MP_RETRIEVE_START` | `device`, `engine_id`, `model_name` | `str`, `int`, `str` |
+| `MP_RETRIEVE_START` | `device`, `engine_id`, `model_name`, `transfer_key`, `num_chunks` | `str`, `int`, `str`, `str`, `int` |
 | `MP_RETRIEVE_END` | `device`, `retrieved_count`, `engine_id`, `model_name`, `cache_salt`, `total_bytes`, `num_tokens` | `str`, `int`, `int`, `str`, `str`, `int`, `int` |
 | `MP_LOOKUP_PREFETCH_START` | *(none)* | — |
 | `MP_LOOKUP_PREFETCH_END` | `found_count`, `requested_tokens`, `hit_tokens`, `model_name`, `cache_salt` | `int`, `int`, `int`, `str`, `str` |
 | `MP_LOOKUP` | `request_id`, `chunk_hashes`, `model_name`, `chunk_size`, `seq_len`, `dtypes`, `shapes` | `str`, `list[str]`, `str`, `int`, `int`, `list[str]`, `list[list[int]]` |
 | `MP_VLLM_BLOCK_ALLOCATION` | `instance_id`, `model_name`, `records` | `int`, `str`, `list[BlockAllocationRecord]` (each has `req_id: str`, `new_block_ids: list[int]`, `new_token_ids: list[int]`) |
 | `MP_VLLM_END_SESSION` | `request_id` | `str` |
+
+`num_chunks` on `MP_RETRIEVE_START` is published by the LMCache-driven GPU
+path. The engine-driven CPU endpoint omits it because it does not own the H2D
+copy.
 
 ### `num_tokens` on `MP_STORE_END` / `MP_RETRIEVE_END`
 

@@ -406,6 +406,7 @@ def init_observability(
             BlendMetricsSubscriber,
             EngineMetricsSubscriber,
             EventBusSelfMetricsSubscriber,
+            H2DRetrieveMetricsSubscriber,
             L0L1ThroughputSubscriber,
             L0LifecycleSubscriber,
             L1EvictionLoopSubscriber,
@@ -435,6 +436,7 @@ def init_observability(
         bus.register_subscriber(L2ThroughputSubscriber())
         bus.register_subscriber(LookupMetricsSubscriber())
         bus.register_subscriber(PrefetchLatencySubscriber())
+        bus.register_subscriber(H2DRetrieveMetricsSubscriber())
         bus.register_subscriber(SMLifecycleSubscriber(sample_rate=sample_rate))
         bus.register_subscriber(BlendMetricsSubscriber())
         bus.register_subscriber(EngineMetricsSubscriber())

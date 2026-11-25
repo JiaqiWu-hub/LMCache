@@ -1221,6 +1221,32 @@ class LMCacheDrivenTransferModule(InstanceLivenessTarget):
         )
         num_chunks = len(obj_keys_per_obj_group[0])
 
+        blocks_per_chunk = [
+            cache_context.calculate_num_blocks(self._ctx.chunk_size, group_idx)
+            for group_idx in range(
+                cache_context.kv_layer_groups_manager.num_kernel_groups
+            )
+        ]
+
+        # Validate before publishing lifecycle events. A short block-id list
+        # returns without device work, so START/END must not be opened.
+        if any(
+            len(group_block_ids) < num_chunks * bpc
+            for group_block_ids, bpc in zip(
+                gpu_block_ids, blocks_per_chunk, strict=True
+            )
+        ):
+            logger.error(
+                "RETRIEVE block ID underflow for request_id=%s: each group "
+                "needs num_chunks * blocks_per_chunk block IDs for %d "
+                "chunks (per-group blocks_per_chunk=%s); skipping the "
+                "retrieve.",
+                key.request_id,
+                num_chunks,
+                blocks_per_chunk,
+            )
+            return b"", False
+
         # CPU-synchronous sentinel: a GPU retrieve is about to be enqueued.
         # Must be published via publish() (not publish_on_stream) so the
         # drain thread sees it before MP_REQUEST_END can race MP_RETRIEVE_END.
@@ -1246,44 +1272,16 @@ class LMCacheDrivenTransferModule(InstanceLivenessTarget):
                     "engine_id": instance_id,
                     "model_name": model_name,
                     "transfer_key": transfer_key,
+                    "num_chunks": num_chunks,
                 },
             ),
         )
-
-        blocks_per_chunk = [
-            cache_context.calculate_num_blocks(self._ctx.chunk_size, group_idx)
-            for group_idx in range(
-                cache_context.kv_layer_groups_manager.num_kernel_groups
-            )
-        ]
 
         with (
             torch_dev.device(cache_context.device),
             torch_dev.stream(cache_context.stream),
         ):
             event = event_backend.create_event(cache_context.device)
-
-            # Fail closed: a short block-id list would drive the transfer
-            # kernel to write out-of-bounds GPU memory. Checked on the raw
-            # block ids, before cutting drops the per-chunk blocks that
-            # sliding-window groups do not need.
-            if any(
-                len(group_block_ids) < num_chunks * bpc
-                for group_block_ids, bpc in zip(
-                    gpu_block_ids, blocks_per_chunk, strict=True
-                )
-            ):
-                logger.error(
-                    "RETRIEVE block ID underflow for request_id=%s: each group "
-                    "needs num_chunks * blocks_per_chunk block IDs for %d "
-                    "chunks (per-group blocks_per_chunk=%s); skipping the "
-                    "retrieve.",
-                    key.request_id,
-                    num_chunks,
-                    blocks_per_chunk,
-                )
-                event_backend.record_event(event, cache_context.stream)
-                return event_backend.export_event(event, cache_context.device), False
 
             # Cut and stage all block_ids to GPU once before the transfer
             block_ids_per_group_gpu = downsample_and_stage_block_ids(

@@ -218,6 +218,47 @@ raw counter keeps the window choice in the dashboard.
 
 ---
 
+## H2D Chunk Latency and In-flight Concurrency
+
+`H2DRetrieveMetricsSubscriber` consumes the GPU-stream
+`MP_RETRIEVE_START` -> `MP_RETRIEVE_END` window. `MP_RETRIEVE_START` carries
+the request's logical `num_chunks`, so the subscriber aggregates by chunk
+without treating each object group as a separate chunk. START events without a
+positive `num_chunks` are ignored by these H2D metrics.
+
+Current gauges are instantaneous. Peak gauges are drained when observed and
+therefore report the maximum since the previous metric collection, normally one
+Prometheus scrape. All four gauges carry `device`, `engine_id`, and
+`model_name` when those attributes are present on the START event.
+
+The in-flight chunk gauge counts every logical chunk in an active retrieve
+window, including chunks queued within that transfer. It is not a count of
+independently executing copy kernels.
+
+| OTel metric name | Prometheus name | Type | Source event | Calculation |
+|---|---|---|---|---|
+| `lmcache_mp.h2d_chunk_duration` | `lmcache_mp_h2d_chunk_duration_seconds_total` | Counter | `MP_RETRIEVE_START` -> `MP_RETRIEVE_END` | `+ (end_ts - start_ts)` per completed retrieve |
+| `lmcache_mp.h2d_chunks_completed` | `lmcache_mp_h2d_chunks_completed_total` | Counter | `MP_RETRIEVE_START` -> `MP_RETRIEVE_END` | `+ num_chunks` per completed retrieve |
+| `lmcache_mp.h2d_inflight_requests` | `lmcache_mp_h2d_inflight_requests` | Gauge | `MP_RETRIEVE_START` / `MP_RETRIEVE_END` | Current START-to-END retrieve windows |
+| `lmcache_mp.h2d_peak_inflight_requests` | `lmcache_mp_h2d_peak_inflight_requests` | Gauge | `MP_RETRIEVE_START` | Maximum current request count since the previous collection |
+| `lmcache_mp.h2d_inflight_chunks` | `lmcache_mp_h2d_inflight_chunks` | Gauge | `MP_RETRIEVE_START` / `MP_RETRIEVE_END` | Sum of `num_chunks` for current retrieve windows |
+| `lmcache_mp.h2d_peak_inflight_chunks` | `lmcache_mp_h2d_peak_inflight_chunks` | Gauge | `MP_RETRIEVE_START` | Maximum current chunk count since the previous collection |
+
+The time-window average H2D service time per logical chunk is:
+
+```promql
+rate(lmcache_mp_h2d_chunk_duration_seconds_total[1m])
+/
+rate(lmcache_mp_h2d_chunks_completed_total[1m])
+```
+
+The duration is the GPU-stream retrieve window, which includes producer-event
+waiting and all work between START and END. The per-chunk value is therefore an
+average service-time estimate (`window duration / requested chunks`), not a
+histogram of independently timed copy operations.
+
+---
+
 ## L2 Eviction Metrics
 
 | OTel metric name | Prometheus name | Type | Source event | Calculation |
