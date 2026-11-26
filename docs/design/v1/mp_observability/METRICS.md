@@ -226,10 +226,12 @@ the request's logical `num_chunks`, so the subscriber aggregates by chunk
 without treating each object group as a separate chunk. START events without a
 positive `num_chunks` are ignored by these H2D metrics.
 
-Current gauges are instantaneous. Peak gauges are drained when observed and
-therefore report the maximum since the previous metric collection, normally one
-Prometheus scrape. All four gauges carry `device`, `engine_id`, and
-`model_name` when those attributes are present on the START event.
+Current gauges are instantaneous. Peak gauges report the maximum current value
+since the previous metric collection, normally one Prometheus scrape. They are
+drained when observed; requests still active at that point become the baseline
+for the next interval, so long-running retrieves continue to contribute to each
+interval peak. All four gauges carry `device`, `engine_id`, and `model_name`
+when those attributes are present on the START event.
 
 The in-flight chunk gauge counts every logical chunk in an active retrieve
 window, including chunks queued within that transfer. It is not a count of

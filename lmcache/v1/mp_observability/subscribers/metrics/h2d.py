@@ -140,9 +140,17 @@ class H2DRetrieveMetricsSubscriber(EventSubscriber):
                 attributes=attributes,
             )
             self._increment(self._inflight_requests, attributes, 1)
-            self._increment(self._peak_inflight_requests, attributes, 1)
             self._increment(self._inflight_chunks, attributes, num_chunks)
-            self._increment(self._peak_inflight_chunks, attributes, num_chunks)
+            self._update_peak(
+                self._peak_inflight_requests,
+                self._inflight_requests,
+                attributes,
+            )
+            self._update_peak(
+                self._peak_inflight_chunks,
+                self._inflight_chunks,
+                attributes,
+            )
 
     def _on_retrieve_end(self, event: Event) -> None:
         """Close one H2D retrieve window and record per-chunk estimates."""
@@ -179,7 +187,10 @@ class H2DRetrieveMetricsSubscriber(EventSubscriber):
     ) -> list[metrics.Observation]:
         """Return and reset the interval peak of active H2D requests."""
         with self._state_lock:
-            return self._drain_peak_observations(self._peak_inflight_requests)
+            return self._drain_peak_observations(
+                self._peak_inflight_requests,
+                self._inflight_requests,
+            )
 
     def _observe_inflight_chunks(self, _options: object) -> list[metrics.Observation]:
         """Return current active H2D chunk counts."""
@@ -191,7 +202,10 @@ class H2DRetrieveMetricsSubscriber(EventSubscriber):
     ) -> list[metrics.Observation]:
         """Return and reset the interval peak of active H2D chunks."""
         with self._state_lock:
-            return self._drain_peak_observations(self._peak_inflight_chunks)
+            return self._drain_peak_observations(
+                self._peak_inflight_chunks,
+                self._inflight_chunks,
+            )
 
     @staticmethod
     def _correlation_key(event: Event) -> tuple[str, str] | None:
@@ -224,6 +238,18 @@ class H2DRetrieveMetricsSubscriber(EventSubscriber):
         values[attributes] = max(0, values.get(attributes, 0) + delta)
 
     @staticmethod
+    def _update_peak(
+        peaks: dict[_AttributeKey, int],
+        current: dict[_AttributeKey, int],
+        attributes: _AttributeKey,
+    ) -> None:
+        """Raise the interval peak to the current concurrency level."""
+        peaks[attributes] = max(
+            peaks.get(attributes, 0),
+            current.get(attributes, 0),
+        )
+
+    @staticmethod
     def _observations(
         values: dict[_AttributeKey, int],
     ) -> list[metrics.Observation]:
@@ -235,10 +261,14 @@ class H2DRetrieveMetricsSubscriber(EventSubscriber):
 
     @classmethod
     def _drain_peak_observations(
-        cls, values: dict[_AttributeKey, int]
+        cls,
+        values: dict[_AttributeKey, int],
+        current_values: dict[_AttributeKey, int],
     ) -> list[metrics.Observation]:
-        """Return peak observations and reset the counters for the next interval."""
+        """Return interval peaks and seed the next interval with active values."""
+        for attributes, current in current_values.items():
+            values[attributes] = max(values.get(attributes, 0), current)
         observations = cls._observations(values)
         for attributes in values:
-            values[attributes] = 0
+            values[attributes] = current_values.get(attributes, 0)
         return observations

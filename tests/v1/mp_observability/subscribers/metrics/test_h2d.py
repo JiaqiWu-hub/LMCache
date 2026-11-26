@@ -116,9 +116,16 @@ def _model_attributes(model_name: str) -> dict[str, str]:
     return {"device": "cuda:0", "engine_id": "7", "model_name": model_name}
 
 
+@pytest.fixture(scope="module")
+def subscriber() -> H2DRetrieveMetricsSubscriber:
+    """Share one OTel instrument registration across the test module."""
+    return H2DRetrieveMetricsSubscriber()
+
+
 class TestH2DRetrieveMetrics:
-    def test_tracks_request_and_chunk_concurrency_and_histogram_weight(self):
-        subscriber = H2DRetrieveMetricsSubscriber()
+    def test_tracks_request_and_chunk_concurrency_and_histogram_weight(
+        self, subscriber: H2DRetrieveMetricsSubscriber
+    ):
         handlers = subscriber.get_subscriptions()
         model_name = "h2d-concurrency-test"
         handlers[EventType.MP_RETRIEVE_START](
@@ -140,14 +147,55 @@ class TestH2DRetrieveMetrics:
         after_end = _snapshot()
         assert _value(after_end, _INFLIGHT_REQUESTS, **attributes) == 1
         assert _value(after_end, _INFLIGHT_CHUNKS, **attributes) == 2
-        assert _value(after_end, _PEAK_REQUESTS, **attributes) == 0
-        assert _value(after_end, _PEAK_CHUNKS, **attributes) == 0
+        assert _value(after_end, _PEAK_REQUESTS, **attributes) == 2
+        assert _value(after_end, _PEAK_CHUNKS, **attributes) == 5
         count, total = _histogram_stats(after_end, _CHUNK_DURATION, **attributes)
         assert count == 3
         assert total == pytest.approx(1.0)
 
-    def test_missing_num_chunks_is_ignored(self):
-        subscriber = H2DRetrieveMetricsSubscriber()
+        handlers[EventType.MP_RETRIEVE_END](_end("req-b", "req-b#1", 12.2, model_name))
+
+        after_both_end = _snapshot()
+        assert _value(after_both_end, _INFLIGHT_REQUESTS, **attributes) == 0
+        assert _value(after_both_end, _INFLIGHT_CHUNKS, **attributes) == 0
+        assert _value(after_both_end, _PEAK_REQUESTS, **attributes) == 1
+        assert _value(after_both_end, _PEAK_CHUNKS, **attributes) == 2
+        count, total = _histogram_stats(after_both_end, _CHUNK_DURATION, **attributes)
+        assert count == 5
+        assert total == pytest.approx(3.0)
+
+        idle = _snapshot()
+        assert _value(idle, _PEAK_REQUESTS, **attributes) == 0
+        assert _value(idle, _PEAK_CHUNKS, **attributes) == 0
+
+    def test_peak_tracks_concurrency_not_start_event_count(
+        self, subscriber: H2DRetrieveMetricsSubscriber
+    ):
+        handlers = subscriber.get_subscriptions()
+        model_name = "h2d-sequential-concurrency-test"
+        handlers[EventType.MP_RETRIEVE_START](
+            _start("req-a", "req-a#1", 40.0, 3, model_name)
+        )
+        handlers[EventType.MP_RETRIEVE_END](
+            _end("req-a", "req-a#1", 40.1, model_name)
+        )
+        handlers[EventType.MP_RETRIEVE_START](
+            _start("req-b", "req-b#1", 40.2, 2, model_name)
+        )
+        handlers[EventType.MP_RETRIEVE_END](
+            _end("req-b", "req-b#1", 40.3, model_name)
+        )
+
+        attributes = _model_attributes(model_name)
+        snapshot = _snapshot()
+        assert _value(snapshot, _INFLIGHT_REQUESTS, **attributes) == 0
+        assert _value(snapshot, _INFLIGHT_CHUNKS, **attributes) == 0
+        assert _value(snapshot, _PEAK_REQUESTS, **attributes) == 1
+        assert _value(snapshot, _PEAK_CHUNKS, **attributes) == 3
+
+    def test_missing_num_chunks_is_ignored(
+        self, subscriber: H2DRetrieveMetricsSubscriber
+    ):
         handlers = subscriber.get_subscriptions()
         model_name = "h2d-missing-num-chunks-test"
         handlers[EventType.MP_RETRIEVE_START](
@@ -169,8 +217,9 @@ class TestH2DRetrieveMetrics:
         assert count == 0
         assert total == 0.0
 
-    def test_end_without_start_does_not_go_negative(self):
-        subscriber = H2DRetrieveMetricsSubscriber()
+    def test_end_without_start_does_not_go_negative(
+        self, subscriber: H2DRetrieveMetricsSubscriber
+    ):
         handlers = subscriber.get_subscriptions()
         model_name = "h2d-orphan-end-test"
         handlers[EventType.MP_RETRIEVE_END](
