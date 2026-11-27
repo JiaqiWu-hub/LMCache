@@ -239,18 +239,54 @@ independently executing copy kernels.
 
 | OTel metric name | Prometheus name | Type | Source event | Calculation |
 |---|---|---|---|---|
-| `lmcache_mp.h2d_chunk_duration` | `lmcache_mp_h2d_chunk_duration_seconds_bucket/_sum/_count` | Histogram | `MP_RETRIEVE_START` -> `MP_RETRIEVE_END` | Record `(end_ts - start_ts) / num_chunks` once per logical chunk |
+| `lmcache_mp.h2d_chunk_copy_duration` | `lmcache_mp_h2d_chunk_copy_duration_seconds_bucket/_sum/_count` | Histogram | `MP_RETRIEVE_CHUNK_COPY_START/END` | Accumulate completed staging-copy intervals by `chunk_index`; emit one sample per logical chunk at retrieve end |
+| `lmcache_mp.h2d_request_queue_duration` | `lmcache_mp_h2d_request_queue_duration_seconds_bucket/_sum/_count` | Histogram | `MP_RETRIEVE_SUBMITTED` -> `MP_RETRIEVE_START` | `start_ts - submitted_ts`, one sample per retrieve request |
+| `lmcache_mp.h2d_producer_wait_duration` | `lmcache_mp_h2d_producer_wait_duration_seconds_bucket/_sum/_count` | Histogram | `MP_RETRIEVE_START` -> `MP_RETRIEVE_PRODUCER_READY` | `producer_ready_ts - start_ts`, one sample per retrieve request |
+| `lmcache_mp.h2d_transfer_duration` | `lmcache_mp_h2d_transfer_duration_seconds_bucket/_sum/_count` | Histogram | `MP_RETRIEVE_PRODUCER_READY` -> `MP_RETRIEVE_END` | `end_ts - producer_ready_ts`, one sample per retrieve request |
+| `lmcache_mp.h2d_copy_duration` | `lmcache_mp_h2d_copy_duration_seconds_bucket/_sum/_count` | Histogram | `MP_RETRIEVE_COPY_START/END` | Sum of completed pinned-CPU-to-GPU staging-copy intervals, one sample per retrieve request |
+| `lmcache_mp.h2d_scatter_duration` | `lmcache_mp_h2d_scatter_duration_seconds_bucket/_sum/_count` | Histogram | `MP_RETRIEVE_SCATTER_START/END` | Sum of completed paged-scatter kernel intervals, one sample per retrieve request |
 | `lmcache_mp.h2d_inflight_requests` | `lmcache_mp_h2d_inflight_requests` | Gauge | `MP_RETRIEVE_START` / `MP_RETRIEVE_END` | Current START-to-END retrieve windows |
 | `lmcache_mp.h2d_peak_inflight_requests` | `lmcache_mp_h2d_peak_inflight_requests` | Gauge | `MP_RETRIEVE_START` | Maximum current request count since the previous collection |
 | `lmcache_mp.h2d_inflight_chunks` | `lmcache_mp_h2d_inflight_chunks` | Gauge | `MP_RETRIEVE_START` / `MP_RETRIEVE_END` | Sum of `num_chunks` for current retrieve windows |
 | `lmcache_mp.h2d_peak_inflight_chunks` | `lmcache_mp_h2d_peak_inflight_chunks` | Gauge | `MP_RETRIEVE_START` | Maximum current chunk count since the previous collection |
 
-The time-window average H2D service time per logical chunk is:
+The request-level H2D segments satisfy:
+
+```text
+queue             = START - SUBMITTED
+producer_wait     = PRODUCER_READY - START
+h2d_transfer      = END - PRODUCER_READY
+SUBMITTED -> END  = queue + producer_wait + h2d_transfer
+```
+
+`copy` and `scatter` are direct GPU-stream work intervals contained inside
+`h2d_transfer`. The transfer segment also contains storage-manager retrieval,
+native plan setup, callback dispatch, `finish_read_prefetched`, and other gaps,
+so normally:
+
+```text
+h2d_transfer >= copy_duration + scatter_duration
+```
+
+Copy and scatter events are emitted on the same retrieve stream as the data
+operations. A request with several object groups and several internal batches
+gets one request-level copy sample and one request-level scatter sample, each
+equal to the sum of all matching intervals in that retrieve. The chunk-copy
+events carry `chunk_index`; the subscriber accumulates each chunk's copy time
+across object groups and records exactly one chunk-copy sample at retrieve end.
+Missing segment events leave only that segment absent; the other H2D metrics
+continue to be recorded.
+
+Scatter has only a request-level histogram. One native scatter launch can cover
+up to four logical chunks, so splitting it into per-chunk samples would require
+changing the kernel execution path rather than adding observability alone.
+
+The time-window average H2D staging-copy time per logical chunk is:
 
 ```promql
-rate(lmcache_mp_h2d_chunk_duration_seconds_sum[1m])
+rate(lmcache_mp_h2d_chunk_copy_duration_seconds_sum[1m])
 /
-rate(lmcache_mp_h2d_chunk_duration_seconds_count[1m])
+rate(lmcache_mp_h2d_chunk_copy_duration_seconds_count[1m])
 ```
 
 P99 and P99.99 estimates use the histogram buckets:
@@ -258,15 +294,14 @@ P99 and P99.99 estimates use the histogram buckets:
 ```promql
 histogram_quantile(
   0.99,
-  sum by (le) (rate(lmcache_mp_h2d_chunk_duration_seconds_bucket[1m]))
+  sum by (le) (rate(lmcache_mp_h2d_chunk_copy_duration_seconds_bucket[1m]))
 )
 ```
 
-The duration is the GPU-stream retrieve window, which includes producer-event
-waiting and all work between START and END. Each request contributes one
-`window duration / requested chunks` observation per logical chunk. This
-preserves chunk-count weighting and enables histogram quantiles, but it does not
-capture variance between independently timed copies inside the same request.
+The duration is the actual stream interval around each staging copy. It excludes
+producer wait, scatter, and request-level setup gaps, and preserves differences
+between chunks in the same retrieve. The request-level `h2d_copy_duration`
+remains available when an aggregate request view is more useful.
 
 ---
 

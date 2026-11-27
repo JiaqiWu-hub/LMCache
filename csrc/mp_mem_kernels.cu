@@ -2,6 +2,8 @@
 
 #include "mp_mem_kernels.cuh"
 
+#include "event_recorder.h"
+
 namespace {
 
 /**
@@ -460,21 +462,56 @@ void multi_layer_block_kv_transfer(
 
 #undef LAUNCH_TEMPLATED
 
-void execute_object_group_transfer(
+namespace {
+
+void record_segment_event(lmcache_stream_t stream,
+                          const SegmentEventContext& event_context,
+                          const char* event_type_name,
+                          int chunk_index = -1) {
+  if (!event_context.enabled) {
+    return;
+  }
+  auto int_metadata = event_context.int_metadata;
+  if (chunk_index >= 0) {
+    int_metadata["chunk_index"] = chunk_index;
+  }
+  record_event_on_stream(
+      static_cast<int64_t>(reinterpret_cast<uintptr_t>(stream)),
+      event_type_name, event_context.session_id, event_context.str_metadata,
+      int_metadata);
+}
+
+void execute_object_group_transfer_impl(
     TransferDirection direction, const torch::Device& device,
     size_t host_buffer_alignment,
     const std::vector<KernelGroupSpec>& kernel_group_specs,
-    const std::vector<BatchStep>& batch_steps) {
+    const std::vector<BatchStep>& batch_steps,
+    const SegmentEventContext* event_context) {
   // Set the device guard once for the whole plan so every staging copy and
   // kernel launch below is enqueued on this device's current stream, in order.
   const at::cuda::OptionalCUDAGuard device_guard(device);
   const bool is_h2d = (direction == TransferDirection::H2D);
+  const bool record_segments =
+      is_h2d && event_context != nullptr && event_context->enabled;
+  const lmcache_stream_t stream = at::cuda::getCurrentCUDAStream().stream();
   const auto int64_opts = at::TensorOptions().dtype(at::kLong).device(device);
+  const bool record_chunk_copy_segments =
+      record_segments && event_context->chunk_copy_enabled;
 
   const auto do_staging = [&](const std::vector<StagingCopy>& staging) {
     for (const auto& copy : staging) {
+      if (record_chunk_copy_segments) {
+        record_segment_event(stream, *event_context,
+                             "mp.retrieve.chunk_copy.start",
+                             copy.chunk_index);
+      }
       lmcache_memcpy_async(copy.dest, copy.src, copy.nbytes, direction,
                            copy.host_offset, host_buffer_alignment);
+      if (record_chunk_copy_segments) {
+        record_segment_event(stream, *event_context,
+                             "mp.retrieve.chunk_copy.end",
+                             copy.chunk_index);
+      }
     }
   };
 
@@ -483,7 +520,15 @@ void execute_object_group_transfer(
     // GPU->CPU after the kernel writes them. The per-step ordering must be
     // preserved because temp buffers are reused across steps.
     if (is_h2d) {
+      if (record_segments) {
+        record_segment_event(stream, *event_context, "mp.retrieve.copy.start");
+      }
       do_staging(step.staging);
+      if (record_segments) {
+        record_segment_event(stream, *event_context, "mp.retrieve.copy.end");
+        record_segment_event(stream, *event_context,
+                             "mp.retrieve.scatter.start");
+      }
     }
     for (const auto& launch : step.launches) {
       TORCH_CHECK(
@@ -536,8 +581,34 @@ void execute_object_group_transfer(
           device, direction, group.shape_desc, group.lmcache_chunk_size,
           group.engine_kv_format, launch.skip_prefix_n_blocks);
     }
+    if (record_segments) {
+      record_segment_event(stream, *event_context, "mp.retrieve.scatter.end");
+    }
     if (!is_h2d) {
       do_staging(step.staging);
     }
   }
+}
+
+}  // namespace
+
+void execute_object_group_transfer(
+    TransferDirection direction, const torch::Device& device,
+    size_t host_buffer_alignment,
+    const std::vector<KernelGroupSpec>& kernel_group_specs,
+    const std::vector<BatchStep>& batch_steps) {
+  execute_object_group_transfer_impl(
+      direction, device, host_buffer_alignment, kernel_group_specs, batch_steps,
+      nullptr);
+}
+
+void execute_object_group_transfer_with_segments(
+    TransferDirection direction, const torch::Device& device,
+    size_t host_buffer_alignment,
+    const std::vector<KernelGroupSpec>& kernel_group_specs,
+    const std::vector<BatchStep>& batch_steps,
+    const SegmentEventContext& event_context) {
+  execute_object_group_transfer_impl(
+      direction, device, host_buffer_alignment, kernel_group_specs, batch_steps,
+      &event_context);
 }

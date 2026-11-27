@@ -34,6 +34,11 @@ Each instrument is exposed with `_bucket`, `_count`, and `_sum`.
 | `lmcache_mp.l1_allocate_duration` | `lmcache_mp_l1_allocate_duration_seconds` | L1 write-buffer allocation after L2 hits |
 | `lmcache_mp.l0_l1_store_duration` | `lmcache_mp_l0_l1_store_duration_seconds` | GPU-to-CPU KV copy |
 | `lmcache_mp.l0_l1_load_duration` | `lmcache_mp_l0_l1_load_duration_seconds` | CPU-to-GPU KV copy |
+| `lmcache_mp.h2d_request_queue_duration` | `lmcache_mp_h2d_request_queue_duration_seconds` | Retrieve queueing from `MP_RETRIEVE_SUBMITTED` to the retrieve stream reaching `MP_RETRIEVE_START` |
+| `lmcache_mp.h2d_producer_wait_duration` | `lmcache_mp_h2d_producer_wait_duration_seconds` | Retrieve stream wait from `MP_RETRIEVE_START` until the vLLM producer event completes |
+| `lmcache_mp.h2d_transfer_duration` | `lmcache_mp_h2d_transfer_duration_seconds` | H2D work from producer-event completion through `MP_RETRIEVE_END` |
+| `lmcache_mp.h2d_copy_duration` | `lmcache_mp_h2d_copy_duration_seconds` | Request-level sum of pinned CPU-to-GPU staging-copy intervals |
+| `lmcache_mp.h2d_scatter_duration` | `lmcache_mp_h2d_scatter_duration_seconds` | Request-level sum of paged-scatter kernel intervals |
 | `lmcache_mp.retrieve_total_duration` | `lmcache_mp_retrieve_total_duration_seconds` | Server-side retrieve submission through completion |
 | `lmcache_mp.store_total_duration` | `lmcache_mp_store_total_duration_seconds` | Server-side store submission through completion |
 | `lmcache_mp.l2_load_duration` | `lmcache_mp_l2_load_duration_seconds` | Per-adapter L2-to-L1 load |
@@ -42,6 +47,20 @@ Each instrument is exposed with `_bucket`, `_count`, and `_sum`.
 `retrieve_total_duration` and `store_total_duration` start when the request
 reaches the LMCache server. They do not include time spent queueing in the
 external connector before that submission.
+
+For each retrieve, the new H2D request segments satisfy:
+
+```text
+retrieve_total = h2d_request_queue
+               + h2d_producer_wait
+               + h2d_transfer
+
+h2d_transfer >= h2d_copy + h2d_scatter
+```
+
+The inequality is expected: `h2d_transfer` also includes plan setup,
+storage-manager handoff, callback dispatch, read-lock release, and other
+GPU-stream work that is not part of the staging copy or scatter kernel.
 
 ## PromQL examples
 

@@ -4,7 +4,7 @@
 # Standard
 from dataclasses import dataclass
 from itertools import islice
-from typing import Generator, Sequence
+from typing import Any, Generator, Sequence
 import threading
 import time
 
@@ -59,6 +59,90 @@ logger = init_logger(__name__)
 _HAS_NATIVE_OBJECT_GROUP_TRANSFER: bool = hasattr(
     lmc_ops, "execute_object_group_transfer"
 )
+_HAS_SEGMENTED_OBJECT_GROUP_TRANSFER: bool = hasattr(
+    lmc_ops, "execute_object_group_transfer_with_segments"
+)
+_SEGMENT_EVENT_TYPES = (
+    EventType.MP_RETRIEVE_COPY_START,
+    EventType.MP_RETRIEVE_COPY_END,
+    EventType.MP_RETRIEVE_SCATTER_START,
+    EventType.MP_RETRIEVE_SCATTER_END,
+)
+_CHUNK_COPY_EVENT_TYPES = (
+    EventType.MP_RETRIEVE_CHUNK_COPY_START,
+    EventType.MP_RETRIEVE_CHUNK_COPY_END,
+)
+
+
+@dataclass(frozen=True)
+class _RetrieveSegmentContext:
+    """Correlation and metric metadata for retrieve segment events."""
+
+    event_bus: Any
+    session_id: str
+    transfer_key: str
+    device: str
+    engine_id: int
+    model_name: str
+    num_chunks: int
+    object_group_id: int
+
+    def has_segment_subscribers(self) -> bool:
+        """Return whether any request- or chunk-level H2D metric is active."""
+        return self.has_request_segment_subscribers() or (
+            self.has_chunk_copy_subscribers()
+        )
+
+    def has_request_segment_subscribers(self) -> bool:
+        """Return whether any request-level H2D segment metric is active."""
+        return any(
+            self.event_bus.has_subscribers(event_type)
+            for event_type in _SEGMENT_EVENT_TYPES
+        )
+
+    def has_chunk_copy_subscribers(self) -> bool:
+        """Return whether per-chunk H2D staging-copy metrics are active."""
+        return any(
+            self.event_bus.has_subscribers(event_type)
+            for event_type in _CHUNK_COPY_EVENT_TYPES
+        )
+
+
+def _segment_event_metadata(
+    segment_context: _RetrieveSegmentContext,
+    chunk_index: int | None = None,
+) -> dict[str, Any]:
+    """Build the common event metadata for one object group's H2D work."""
+    metadata = {
+        "device": segment_context.device,
+        "engine_id": segment_context.engine_id,
+        "model_name": segment_context.model_name,
+        "transfer_key": segment_context.transfer_key,
+        "num_chunks": segment_context.num_chunks,
+        "object_group_id": segment_context.object_group_id,
+    }
+    if chunk_index is not None:
+        metadata["chunk_index"] = chunk_index
+    return metadata
+
+
+def _publish_segment_event(
+    cache_context: BaseCacheContext,
+    segment_context: _RetrieveSegmentContext,
+    event_type: EventType,
+    chunk_index: int | None = None,
+) -> None:
+    """Publish one H2D copy or scatter boundary on the retrieve stream."""
+    if not segment_context.event_bus.has_subscribers(event_type):
+        return
+    segment_context.event_bus.publish_on_stream(
+        cache_context.cupy_stream,
+        Event(
+            event_type=event_type,
+            session_id=segment_context.session_id,
+            metadata=_segment_event_metadata(segment_context, chunk_index),
+        ),
+    )
 
 
 def get_layout_desc(
@@ -246,6 +330,7 @@ def _run_object_group_transfer_plan(
     batch_size: int,
     skip_first_n_tokens: int,
     direction: "lmc_ops.TransferDirection",
+    segment_context: _RetrieveSegmentContext | None = None,
 ) -> None:
     """Plan and execute one object group's transfer in a single native call.
 
@@ -366,6 +451,7 @@ def _run_object_group_transfer_plan(
             memory_object_batch,
             object_group_buffers[:batch_len],
             is_h2d,
+            start_object_idx,
         )
 
         launches: list["lmc_ops.LaunchVar"] = []
@@ -400,13 +486,45 @@ def _run_object_group_transfer_plan(
     if not batch_steps:
         return
 
-    lmc_ops.execute_object_group_transfer(
-        direction,
-        cache_context.device,
-        LazyMemoryAllocator.PIN_CHUNK_SIZE,
-        kernel_group_specs,
-        batch_steps,
-    )
+    native_event_context = None
+    if (
+        segment_context is not None
+        and segment_context.has_segment_subscribers()
+        and _HAS_SEGMENTED_OBJECT_GROUP_TRANSFER
+    ):
+        native_event_context = lmc_ops.SegmentEventContext(
+            True,
+            segment_context.has_chunk_copy_subscribers(),
+            segment_context.session_id,
+            {
+                "device": segment_context.device,
+                "model_name": segment_context.model_name,
+                "transfer_key": segment_context.transfer_key,
+            },
+            {
+                "engine_id": segment_context.engine_id,
+                "num_chunks": segment_context.num_chunks,
+                "object_group_id": segment_context.object_group_id,
+            },
+        )
+
+    if native_event_context is None:
+        lmc_ops.execute_object_group_transfer(
+            direction,
+            cache_context.device,
+            LazyMemoryAllocator.PIN_CHUNK_SIZE,
+            kernel_group_specs,
+            batch_steps,
+        )
+    else:
+        lmc_ops.execute_object_group_transfer_with_segments(
+            direction,
+            cache_context.device,
+            LazyMemoryAllocator.PIN_CHUNK_SIZE,
+            kernel_group_specs,
+            batch_steps,
+            native_event_context,
+        )
 
 
 def transfer_kv_per_object_group(
@@ -417,6 +535,7 @@ def transfer_kv_per_object_group(
     batch_size: int,
     skip_first_n_tokens: int,
     direction: "lmc_ops.TransferDirection",
+    segment_context: _RetrieveSegmentContext | None = None,
 ) -> None:
     """Helper function to transfer memory objects of a single object group
     to/from GPU, with batching support.
@@ -437,6 +556,8 @@ def transfer_kv_per_object_group(
             the retrieve range. This avoids overwriting APC-shared GPU blocks that
             may be read concurrently by other requests.
         direction: The transfer direction, H2D (retrieve) or D2H (store).
+        segment_context: Optional request-level metadata used to emit H2D
+            copy/scatter segment events.
 
     Raises:
         ValueError: If it founds None entry in memory_objs when direction is H2D.
@@ -444,9 +565,15 @@ def transfer_kv_per_object_group(
         This function expects the caller to stage the block ids (list[list[int]])
         into GPU tensors and pass them in as `block_ids_gpu`.
     """
-    if _HAS_NATIVE_OBJECT_GROUP_TRANSFER and not any(
-        isinstance(mo, GDSMemoryObject) for mo in memory_objs
-    ):
+    segment_metrics_active = (
+        segment_context is not None and segment_context.has_segment_subscribers()
+    )
+    can_use_native = (
+        _HAS_NATIVE_OBJECT_GROUP_TRANSFER
+        and not any(isinstance(mo, GDSMemoryObject) for mo in memory_objs)
+        and (not segment_metrics_active or _HAS_SEGMENTED_OBJECT_GROUP_TRANSFER)
+    )
+    if can_use_native:
         _run_object_group_transfer_plan(
             cache_context,
             block_ids_gpu,
@@ -455,6 +582,7 @@ def transfer_kv_per_object_group(
             batch_size,
             skip_first_n_tokens,
             direction,
+            segment_context,
         )
         return
 
@@ -463,6 +591,9 @@ def transfer_kv_per_object_group(
     object_group = kv_groups_manager.object_groups[object_group_id]
     kernel_group_ids = object_group.kernel_group_indices
     is_h2d = direction == lmc_ops.TransferDirection.H2D
+    chunk_copy_metrics_active = (
+        segment_context is not None and segment_context.has_chunk_copy_subscribers()
+    )
 
     attn_desc = kv_groups_manager.get_attn_desc()
     num_objects_to_skip = 0
@@ -501,12 +632,43 @@ def transfer_kv_per_object_group(
 
         # For H2D, copy from CPU to GPU tmp buffers before the kernel launch
         if is_h2d:
+            if segment_context is not None:
+                _publish_segment_event(
+                    cache_context,
+                    segment_context,
+                    EventType.MP_RETRIEVE_COPY_START,
+                )
             for chunk_idx, memory_obj in enumerate(memory_object_batch):
+                if chunk_copy_metrics_active:
+                    _publish_segment_event(
+                        cache_context,
+                        segment_context,
+                        EventType.MP_RETRIEVE_CHUNK_COPY_START,
+                        start_object_idx + chunk_idx,
+                    )
                 lmcache_memcpy_async_h2d(
                     memory_obj,
                     cache_context.get_temp_object_group_buffer(
                         chunk_idx, object_group_id
                     ),
+                )
+                if chunk_copy_metrics_active:
+                    _publish_segment_event(
+                        cache_context,
+                        segment_context,
+                        EventType.MP_RETRIEVE_CHUNK_COPY_END,
+                        start_object_idx + chunk_idx,
+                    )
+            if segment_context is not None:
+                _publish_segment_event(
+                    cache_context,
+                    segment_context,
+                    EventType.MP_RETRIEVE_COPY_END,
+                )
+                _publish_segment_event(
+                    cache_context,
+                    segment_context,
+                    EventType.MP_RETRIEVE_SCATTER_START,
                 )
 
         # Do paged KV copy
@@ -563,6 +725,13 @@ def transfer_kv_per_object_group(
                 group_lmcache_chunk_size,
                 cache_context.get_engine_kv_format(kernel_group_id),
                 recalculated_skip_blocks,
+            )
+
+        if is_h2d and segment_context is not None:
+            _publish_segment_event(
+                cache_context,
+                segment_context,
+                EventType.MP_RETRIEVE_SCATTER_END,
             )
 
         # For D2H, copy from GPU tmp buffers to CPU after the kernel launch
@@ -1257,6 +1426,9 @@ class LMCacheDrivenTransferModule(InstanceLivenessTarget):
                 session_id=key.request_id,
                 metadata={
                     "device": str(cache_context.device),
+                    "engine_id": instance_id,
+                    "model_name": model_name,
+                    "num_chunks": num_chunks,
                     "transfer_key": transfer_key,
                 },
             )
@@ -1291,6 +1463,20 @@ class LMCacheDrivenTransferModule(InstanceLivenessTarget):
                 event_ipc_handle, cache_context.device
             )
             event_backend.wait_event(producer_event, cache_context.stream)
+            self._ctx.event_bus.publish_on_stream(
+                cache_context.cupy_stream,
+                Event(
+                    event_type=EventType.MP_RETRIEVE_PRODUCER_READY,
+                    session_id=key.request_id,
+                    metadata={
+                        "device": str(cache_context.device),
+                        "engine_id": instance_id,
+                        "model_name": model_name,
+                        "transfer_key": transfer_key,
+                        "num_chunks": num_chunks,
+                    },
+                ),
+            )
 
             prefetched_keys: list[ObjectKey] = []
             total_bytes = 0
@@ -1307,6 +1493,16 @@ class LMCacheDrivenTransferModule(InstanceLivenessTarget):
                             break
 
                         total_bytes += sum(mo.get_size() for mo in memory_objs)
+                        segment_context = _RetrieveSegmentContext(
+                            event_bus=self._ctx.event_bus,
+                            session_id=key.request_id,
+                            transfer_key=transfer_key,
+                            device=str(cache_context.device),
+                            engine_id=instance_id,
+                            model_name=model_name,
+                            num_chunks=num_chunks,
+                            object_group_id=obj_group_id,
+                        )
 
                         transfer_kv_per_object_group(
                             cache_context,
@@ -1316,6 +1512,7 @@ class LMCacheDrivenTransferModule(InstanceLivenessTarget):
                             batch_size=cache_context.max_batch_size,
                             skip_first_n_tokens=skip_first_n_tokens,
                             direction=lmc_ops.TransferDirection.H2D,
+                            segment_context=segment_context,
                         )
                         # Extend only after the copy is enqueued: on exception,
                         # read_prefetched_results releases this group's locks

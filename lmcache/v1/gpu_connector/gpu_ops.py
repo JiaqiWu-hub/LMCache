@@ -99,6 +99,7 @@ def build_staging_copies(
     memory_objs: Sequence[MemoryObj],
     gpu_buffers: Sequence[torch.Tensor],
     is_h2d: bool,
+    start_chunk_index: int = 0,
 ) -> list["lmc_ops.StagingCopy"]:
     """Build native ``StagingCopy`` descriptors for one batch of lazy objects.
 
@@ -111,6 +112,8 @@ def build_staging_copies(
         gpu_buffers: GPU staging buffers, aligned element-wise with
             ``memory_objs``.
         is_h2d: True for retrieve (CPU->GPU), False for store (GPU->CPU).
+        start_chunk_index: Logical request chunk index of the first object in
+            this batch. Used only for per-chunk H2D metric correlation.
 
     Returns:
         One ``lmc_ops.StagingCopy`` per object, in input order.
@@ -120,7 +123,9 @@ def build_staging_copies(
             or its size does not match its GPU buffer.
     """
     copies: list["lmc_ops.StagingCopy"] = []
-    for memory_obj, gpu_buffer in zip(memory_objs, gpu_buffers, strict=True):
+    for chunk_offset, (memory_obj, gpu_buffer) in enumerate(
+        zip(memory_objs, gpu_buffers, strict=True)
+    ):
         if memory_obj.raw_tensor is None:
             raise ValueError(
                 "memory_obj.raw_tensor is None; ensure the MemoryObj has been "
@@ -137,10 +142,22 @@ def build_staging_copies(
         host_offset = memory_obj.meta.address
         if is_h2d:
             copies.append(
-                lmc_ops.StagingCopy(gpu_ptr, host_ptr, mem_obj_size, host_offset)
+                lmc_ops.StagingCopy(
+                    gpu_ptr,
+                    host_ptr,
+                    mem_obj_size,
+                    host_offset,
+                    start_chunk_index + chunk_offset,
+                )
             )
         else:
             copies.append(
-                lmc_ops.StagingCopy(host_ptr, gpu_ptr, mem_obj_size, host_offset)
+                lmc_ops.StagingCopy(
+                    host_ptr,
+                    gpu_ptr,
+                    mem_obj_size,
+                    host_offset,
+                    start_chunk_index + chunk_offset,
+                )
             )
     return copies

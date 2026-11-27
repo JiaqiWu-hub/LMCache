@@ -6,6 +6,8 @@
 
 #include <c10/cuda/CUDAGuard.h>
 #include <cstdint>
+#include <string>
+#include <unordered_map>
 #include <vector>
 
 struct PageBufferShapeDesc {
@@ -84,6 +86,7 @@ struct StagingCopy {
   uintptr_t src;
   size_t nbytes;
   size_t host_offset;
+  int chunk_index;
 };
 
 // One kernel launch within a batch step. The batch-invariant arguments live in
@@ -115,6 +118,17 @@ struct KernelGroupSpec {
                                // bounds-checks each slice in the executor
 };
 
+// Metadata used to publish request-level copy/scatter segment events from the
+// native transfer executor. The stream pointer is resolved inside the executor
+// so callers cannot accidentally record on a different stream.
+struct SegmentEventContext {
+  bool enabled;
+  bool chunk_copy_enabled;
+  std::string session_id;
+  std::unordered_map<std::string, std::string> str_metadata;
+  std::unordered_map<std::string, int64_t> int_metadata;
+};
+
 /**
  * Execute one object group's transfer plan on the current CUDA stream.
  *
@@ -135,6 +149,20 @@ void execute_object_group_transfer(
     size_t host_buffer_alignment,
     const std::vector<KernelGroupSpec>& kernel_group_specs,
     const std::vector<BatchStep>& batch_steps);
+
+/**
+ * Execute one object group's transfer plan while publishing request-level
+ * H2D copy/scatter segment events on the active stream.
+ *
+ * The existing function is kept unchanged for callers that do not need
+ * segment events. Native event recording is disabled for non-H2D transfers.
+ */
+void execute_object_group_transfer_with_segments(
+    TransferDirection direction, const torch::Device& device,
+    size_t host_buffer_alignment,
+    const std::vector<KernelGroupSpec>& kernel_group_specs,
+    const std::vector<BatchStep>& batch_steps,
+    const SegmentEventContext& event_context);
 
 /**
  * Block-level multi-layer KV transfer between vLLM paged buffers and

@@ -1230,7 +1230,7 @@
             "type": "prometheus",
             "uid": "cf5zm84e41v5se"
           },
-          "description": "展示 Get链路总耗时、请求级 H2D耗时，以及按逻辑 chunk 归一化的 H2D耗时。右侧为同一组指标的 P99 和 P9999。chunk级分位数基于每个请求的窗口耗时除以逻辑 chunk 数的 histogram 估算。",
+          "description": "展示 Get Total、Get排队、GPU等待、内存到GPU传输、拷贝、scatter，以及按逻辑 chunk 归一化的 H2D耗时。右侧为同一组指标的 P99 和 P9999。chunk级分位数基于每个请求的窗口耗时除以逻辑 chunk 数的 histogram 估算。",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1326,10 +1326,10 @@
                 "uid": "cf5zm84e41v5se"
               },
               "editorMode": "code",
-              "expr": "sum by (service_name, device) (rate(lmcache_mp_l0_l1_load_duration_seconds_sum{service_name=~\"$service_name\"}[1m]))\n/\nclamp_min(sum by (service_name, device) (rate(lmcache_mp_l0_l1_load_duration_seconds_count{service_name=~\"$service_name\"}[1m])), 1e-9)",
+              "expr": "sum by (service_name) (rate(lmcache_mp_h2d_transfer_duration_seconds_sum{service_name=~\"$service_name\"}[1m]))\n/\nclamp_min(sum by (service_name) (rate(lmcache_mp_h2d_transfer_duration_seconds_count{service_name=~\"$service_name\"}[1m])), 1e-9)",
               "hide": false,
               "instant": false,
-              "legendFormat": "{{service_name}} 内存 to GPU 平均值",
+              "legendFormat": "{{service_name}} 内存 to GPU耗时",
               "range": true,
               "refId": "B"
             },
@@ -1339,12 +1339,64 @@
                 "uid": "cf5zm84e41v5se"
               },
               "editorMode": "code",
-              "expr": "sum by (service_name) (\n  rate(lmcache_mp_h2d_chunk_duration_seconds_sum{\n    service_name=~\"$service_name\"\n  }[1m])\n)\n/\nclamp_min(\n  sum by (service_name) (\n    rate(lmcache_mp_h2d_chunk_duration_seconds_count{\n      service_name=~\"$service_name\"\n    }[1m])\n  ),\n  1e-9\n)",
+              "expr": "sum by (service_name) (rate(lmcache_mp_h2d_chunk_copy_duration_seconds_sum{service_name=~\"$service_name\"}[1m]))\n/\nclamp_min(sum by (service_name) (rate(lmcache_mp_h2d_chunk_copy_duration_seconds_count{service_name=~\"$service_name\"}[1m])), 1e-9)",
               "hide": false,
               "instant": false,
-              "legendFormat": "{{service_name}} 内存 to GPU耗时(chunk)",
+              "legendFormat": "{{service_name}} 内存 to GPU 拷贝耗时（chunk）",
               "range": true,
               "refId": "C"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "sum by (service_name) (rate(lmcache_mp_h2d_request_queue_duration_seconds_sum{service_name=~\"$service_name\"}[1m]))\n/\nclamp_min(sum by (service_name) (rate(lmcache_mp_h2d_request_queue_duration_seconds_count{service_name=~\"$service_name\"}[1m])), 1e-9)",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} Get排队耗时",
+              "range": true,
+              "refId": "D"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "sum by (service_name) (rate(lmcache_mp_h2d_producer_wait_duration_seconds_sum{service_name=~\"$service_name\"}[1m]))\n/\nclamp_min(sum by (service_name) (rate(lmcache_mp_h2d_producer_wait_duration_seconds_count{service_name=~\"$service_name\"}[1m])), 1e-9)",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} GPU等待耗时",
+              "range": true,
+              "refId": "E"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "sum by (service_name) (rate(lmcache_mp_h2d_copy_duration_seconds_sum{service_name=~\"$service_name\"}[1m]))\n/\nclamp_min(sum by (service_name) (rate(lmcache_mp_h2d_copy_duration_seconds_count{service_name=~\"$service_name\"}[1m])), 1e-9)",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} 内存 to GPU 拷贝耗时",
+              "range": true,
+              "refId": "F"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "sum by (service_name) (rate(lmcache_mp_h2d_scatter_duration_seconds_sum{service_name=~\"$service_name\"}[1m]))\n/\nclamp_min(sum by (service_name) (rate(lmcache_mp_h2d_scatter_duration_seconds_count{service_name=~\"$service_name\"}[1m])), 1e-9)",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} GPU scatter耗时",
+              "range": true,
+              "refId": "G"
             }
           ],
           "title": "Get链路耗时（平均值）",
@@ -1355,7 +1407,7 @@
             "type": "prometheus",
             "uid": "cf5zm84e41v5se"
           },
-          "description": "展示 Get Total、请求级 H2D 和 chunk 级 H2D 的 P99 尾延迟。左侧为平均值；chunk级 H2D 分位数基于请求窗口归一化的 histogram 估算。",
+          "description": "展示 Get Total、Get排队、GPU等待、内存到GPU传输、拷贝、scatter，以及 chunk 级 H2D 拷贝的 P99 尾延迟。chunk 级曲线使用每个 chunk 的真实 staging-copy stream 时间；scatter 保持请求级。",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1451,10 +1503,10 @@
                 "uid": "cf5zm84e41v5se"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.99, sum by (le, service_name, device) (rate(lmcache_mp_l0_l1_load_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+              "expr": "histogram_quantile(0.99, sum by (le, service_name) (rate(lmcache_mp_h2d_transfer_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
               "hide": false,
               "instant": false,
-              "legendFormat": "{{service_name}} 内存 to GPU P99",
+              "legendFormat": "{{service_name}} 内存 to GPU耗时 P99",
               "range": true,
               "refId": "B"
             },
@@ -1464,12 +1516,64 @@
                 "uid": "cf5zm84e41v5se"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.99, sum by (le, service_name) (rate(lmcache_mp_h2d_chunk_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+              "expr": "histogram_quantile(0.99, sum by (le, service_name) (rate(lmcache_mp_h2d_chunk_copy_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
               "hide": false,
               "instant": false,
-              "legendFormat": "{{service_name}} 内存 to GPU耗时(chunk) P99",
+              "legendFormat": "{{service_name}} 内存 to GPU 拷贝耗时（chunk） P99",
               "range": true,
               "refId": "C"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.99, sum by (le, service_name) (rate(lmcache_mp_h2d_request_queue_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} Get排队耗时 P99",
+              "range": true,
+              "refId": "D"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.99, sum by (le, service_name) (rate(lmcache_mp_h2d_producer_wait_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} GPU等待耗时 P99",
+              "range": true,
+              "refId": "E"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.99, sum by (le, service_name) (rate(lmcache_mp_h2d_copy_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} 内存 to GPU 拷贝耗时 P99",
+              "range": true,
+              "refId": "F"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.99, sum by (le, service_name) (rate(lmcache_mp_h2d_scatter_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} GPU scatter耗时 P99",
+              "range": true,
+              "refId": "G"
             }
           ],
           "title": "Get链路耗时（P99）",
@@ -1480,7 +1584,7 @@
             "type": "prometheus",
             "uid": "cf5zm84e41v5se"
           },
-          "description": "展示 Get Total、请求级 H2D 和 chunk 级 H2D 的 P9999 尾延迟。左侧为平均值；chunk级 H2D 分位数基于请求窗口归一化的 histogram 估算。",
+          "description": "展示 Get Total、Get排队、GPU等待、内存到GPU传输、拷贝、scatter，以及 chunk 级 H2D 拷贝的 P9999 尾延迟。chunk 级曲线使用每个 chunk 的真实 staging-copy stream 时间；scatter 保持请求级。",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1576,10 +1680,10 @@
                 "uid": "cf5zm84e41v5se"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.9999, sum by (le, service_name, device) (rate(lmcache_mp_l0_l1_load_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+              "expr": "histogram_quantile(0.9999, sum by (le, service_name) (rate(lmcache_mp_h2d_transfer_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
               "hide": false,
               "instant": false,
-              "legendFormat": "{{service_name}} 内存 to GPU P9999",
+              "legendFormat": "{{service_name}} 内存 to GPU耗时 P9999",
               "range": true,
               "refId": "B"
             },
@@ -1589,12 +1693,64 @@
                 "uid": "cf5zm84e41v5se"
               },
               "editorMode": "code",
-              "expr": "histogram_quantile(0.9999, sum by (le, service_name) (rate(lmcache_mp_h2d_chunk_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+              "expr": "histogram_quantile(0.9999, sum by (le, service_name) (rate(lmcache_mp_h2d_chunk_copy_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
               "hide": false,
               "instant": false,
-              "legendFormat": "{{service_name}} 内存 to GPU耗时(chunk) P9999",
+              "legendFormat": "{{service_name}} 内存 to GPU 拷贝耗时（chunk） P9999",
               "range": true,
               "refId": "C"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.9999, sum by (le, service_name) (rate(lmcache_mp_h2d_request_queue_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} Get排队耗时 P9999",
+              "range": true,
+              "refId": "D"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.9999, sum by (le, service_name) (rate(lmcache_mp_h2d_producer_wait_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} GPU等待耗时 P9999",
+              "range": true,
+              "refId": "E"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.9999, sum by (le, service_name) (rate(lmcache_mp_h2d_copy_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} 内存 to GPU 拷贝耗时 P9999",
+              "range": true,
+              "refId": "F"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "cf5zm84e41v5se"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.9999, sum by (le, service_name) (rate(lmcache_mp_h2d_scatter_duration_seconds_bucket{service_name=~\"$service_name\"}[1m])))",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{service_name}} GPU scatter耗时 P9999",
+              "range": true,
+              "refId": "G"
             }
           ],
           "title": "Get链路耗时（P9999）",
@@ -2584,7 +2740,7 @@
               "editorMode": "code",
               "expr": "sum by (service_name) (lmcache_mp_h2d_inflight_requests{service_name=~\"$service_name\"})",
               "instant": false,
-              "legendFormat": "H2D并发请求数",
+              "legendFormat": "H2D正在处理的请求数",
               "range": true,
               "refId": "E"
             },
@@ -2596,7 +2752,7 @@
               "editorMode": "code",
               "expr": "sum by (service_name) (lmcache_mp_h2d_inflight_chunks{service_name=~\"$service_name\"})",
               "instant": false,
-              "legendFormat": "H2D并发chunk数",
+              "legendFormat": "H2D正在处理的chunk数",
               "range": true,
               "refId": "F"
             },
@@ -2608,7 +2764,7 @@
               "editorMode": "code",
               "expr": "sum by (service_name) (lmcache_mp_h2d_peak_inflight_requests{service_name=~\"$service_name\"})",
               "instant": false,
-              "legendFormat": "H2D峰值并发请求数",
+              "legendFormat": "H2D峰值正在处理的请求数",
               "range": true,
               "refId": "G"
             },
@@ -2620,7 +2776,7 @@
               "editorMode": "code",
               "expr": "sum by (service_name) (lmcache_mp_h2d_peak_inflight_chunks{service_name=~\"$service_name\"})",
               "instant": false,
-              "legendFormat": "H2D峰值并发chunk数",
+              "legendFormat": "H2D峰值正在处理的chunk数",
               "range": true,
               "refId": "H"
             }

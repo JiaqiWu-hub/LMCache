@@ -189,7 +189,7 @@ thread processes them in strict order before any GPU-callback events.
 |---|---|---|---|
 | `MP_REQUEST_START` | *(none)* | — | `MPServer.handle_request` — at request arrival, before any GPU work |
 | `MP_STORE_SUBMITTED` | `device` | `str` | `MPServer.store` — CPU-synchronous, before the GPU store is enqueued |
-| `MP_RETRIEVE_SUBMITTED` | `device` | `str` | `MPServer.retrieve` — CPU-synchronous, before the GPU retrieve is enqueued |
+| `MP_RETRIEVE_SUBMITTED` | `device`, `engine_id`, `model_name`, `num_chunks`, `transfer_key` | `str`, `int`, `str`, `int`, `str` | LMCache-driven retrieve — CPU-synchronous, before the GPU retrieve is enqueued |
 | `MP_REQUEST_END` | *(none)* | — | `MPServer.handle_request` — after all CPU work; may precede GPU callbacks |
 
 ---
@@ -204,7 +204,11 @@ to correlate START/END pairs.
 | `MP_STORE_START` | `device`, `engine_id`, `model_name` | `str`, `int`, `str` |
 | `MP_STORE_END` | `device`, `stored_count`, `engine_id`, `model_name`, `total_bytes`, `num_tokens` | `str`, `int`, `int`, `str`, `int`, `int` |
 | `MP_RETRIEVE_START` | `device`, `engine_id`, `model_name`, `transfer_key`, `num_chunks` | `str`, `int`, `str`, `str`, `int` |
-| `MP_RETRIEVE_END` | `device`, `retrieved_count`, `engine_id`, `model_name`, `cache_salt`, `total_bytes`, `num_tokens` | `str`, `int`, `int`, `str`, `str`, `int`, `int` |
+| `MP_RETRIEVE_PRODUCER_READY` | `device`, `engine_id`, `model_name`, `transfer_key`, `num_chunks` | `str`, `int`, `str`, `str`, `int` |
+| `MP_RETRIEVE_COPY_START` / `MP_RETRIEVE_COPY_END` | `device`, `engine_id`, `model_name`, `transfer_key`, `num_chunks`, `object_group_id` | `str`, `int`, `str`, `str`, `int`, `int` |
+| `MP_RETRIEVE_CHUNK_COPY_START` / `MP_RETRIEVE_CHUNK_COPY_END` | `device`, `engine_id`, `model_name`, `transfer_key`, `num_chunks`, `object_group_id`, `chunk_index` | `str`, `int`, `str`, `str`, `int`, `int`, `int` |
+| `MP_RETRIEVE_SCATTER_START` / `MP_RETRIEVE_SCATTER_END` | `device`, `engine_id`, `model_name`, `transfer_key`, `num_chunks`, `object_group_id` | `str`, `int`, `str`, `str`, `int`, `int` |
+| `MP_RETRIEVE_END` | `device`, `retrieved_count`, `engine_id`, `model_name`, `cache_salt`, `total_bytes`, `num_tokens`, `transfer_key` | `str`, `int`, `int`, `str`, `str`, `int`, `int`, `str` |
 | `MP_LOOKUP_PREFETCH_START` | *(none)* | — |
 | `MP_LOOKUP_PREFETCH_END` | `found_count`, `requested_tokens`, `hit_tokens`, `model_name`, `cache_salt` | `int`, `int`, `int`, `str`, `str` |
 | `MP_LOOKUP` | `request_id`, `chunk_hashes`, `model_name`, `chunk_size`, `seq_len`, `dtypes`, `shapes` | `str`, `list[str]`, `str`, `int`, `int`, `list[str]`, `list[list[int]]` |
@@ -214,6 +218,18 @@ to correlate START/END pairs.
 `num_chunks` on `MP_RETRIEVE_START` is published by the LMCache-driven GPU
 path. The engine-driven CPU endpoint omits it because it does not own the H2D
 copy.
+
+`MP_RETRIEVE_PRODUCER_READY`, the copy/scatter boundaries, and
+`MP_RETRIEVE_END` are published on the retrieve GPU stream. Their timestamps
+therefore describe stream ordering rather than Python call ordering:
+
+```text
+SUBMITTED (CPU)
+  -> START (GPU stream)
+  -> PRODUCER_READY (GPU stream, producer event has completed)
+  -> COPY_START/END, SCATTER_START/END (repeated per object-group batch)
+  -> END (GPU stream, after finish_read_prefetched is enqueued)
+```
 
 ### `num_tokens` on `MP_STORE_END` / `MP_RETRIEVE_END`
 

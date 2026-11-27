@@ -11,6 +11,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any, Callable
 import collections
+import inspect
 import threading
 import time
 
@@ -26,7 +27,12 @@ try:
     # First Party
     import lmcache.c_ops as _lmc_ops
 
-    _has_native_recorder = hasattr(_lmc_ops, "record_event_on_stream")
+    # The torch fallback exposes the same function name but timestamps events
+    # immediately, losing stream ordering. lmcache.c_ops is a Python shim, so
+    # inspect the bound callable instead of the shim module's __file__.
+    _has_native_recorder = inspect.isbuiltin(
+        getattr(_lmc_ops, "record_event_on_stream", None)
+    )
 except ImportError:
     _has_native_recorder = False
 

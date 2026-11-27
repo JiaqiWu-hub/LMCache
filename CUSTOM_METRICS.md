@@ -18,6 +18,8 @@ custom changes visible as normal Git commits.
 
 - MP latency histograms for lookup, prefetch, retrieve, store, allocation, and
   L0/L1 transfers.
+- Request-level H2D queue, producer-wait, transfer, staging-copy, and scatter
+  latency histograms.
 - Per-object L2 filesystem I/O metrics for queue wait, service time, and I/O
   size.
 - L2 throughput metrics and metric event pairing fixes.

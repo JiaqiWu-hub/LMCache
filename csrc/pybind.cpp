@@ -124,11 +124,11 @@ PYBIND11_MODULE(c_ops, m) {
   // Python side and consumed by execute_object_group_transfer.
   py::class_<StagingCopy>(m, "StagingCopy")
       .def(py::init([](uintptr_t dest, uintptr_t src, size_t nbytes,
-                       size_t host_offset) {
-             return StagingCopy{dest, src, nbytes, host_offset};
+                       size_t host_offset, int chunk_index) {
+             return StagingCopy{dest, src, nbytes, host_offset, chunk_index};
            }),
            py::arg("dest"), py::arg("src"), py::arg("nbytes"),
-           py::arg("host_offset"));
+           py::arg("host_offset"), py::arg("chunk_index"));
   py::class_<LaunchVar>(m, "LaunchVar")
       .def(
           py::init([](int group_idx, int64_t block_ids_offset, int total_blocks,
@@ -161,10 +161,32 @@ PYBIND11_MODULE(c_ops, m) {
            py::arg("shape_desc"), py::arg("lmcache_chunk_size"),
            py::arg("engine_kv_format"), py::arg("block_ids_base"),
            py::arg("block_ids_capacity"));
+  py::class_<SegmentEventContext>(m, "SegmentEventContext")
+      .def(py::init([](bool enabled, bool chunk_copy_enabled,
+                       std::string session_id,
+                       std::unordered_map<std::string, std::string> str_metadata,
+                       std::unordered_map<std::string, int64_t> int_metadata) {
+             return SegmentEventContext{
+                 enabled,
+                 chunk_copy_enabled,
+                 std::move(session_id),
+                 std::move(str_metadata),
+                 std::move(int_metadata),
+             };
+           }),
+           py::arg("enabled"), py::arg("chunk_copy_events_enabled"),
+           py::arg("session_id"), py::arg("str_metadata"),
+           py::arg("int_metadata"));
   m.def("execute_object_group_transfer", &execute_object_group_transfer,
         py::arg("direction"), py::arg("device"),
         py::arg("host_buffer_alignment"), py::arg("kernel_group_specs"),
         py::arg("batch_steps"), py::call_guard<py::gil_scoped_release>());
+  m.def("execute_object_group_transfer_with_segments",
+        &execute_object_group_transfer_with_segments, py::arg("direction"),
+        py::arg("device"), py::arg("host_buffer_alignment"),
+        py::arg("kernel_group_specs"), py::arg("batch_steps"),
+        py::arg("event_context"),
+        py::call_guard<py::gil_scoped_release>());
   // CB retrieve plan spec (see blend_kernels.cuh). Built on the Python side
   // (blend_v3.cb_retrieve_pre_computed) and consumed by
   // execute_cb_retrieve_plan_flat.
@@ -257,7 +279,7 @@ PYBIND11_MODULE(c_ops, m) {
                 StagingCopy{static_cast<uintptr_t>(st[j * 4 + 0]),
                             static_cast<uintptr_t>(st[j * 4 + 1]),
                             static_cast<size_t>(st[j * 4 + 2]),
-                            static_cast<size_t>(st[j * 4 + 3])});
+                            static_cast<size_t>(st[j * 4 + 3]), -1});
           }
           step.ropes.reserve(r1 - r0);
           for (int64_t j = r0; j < r1; ++j) {

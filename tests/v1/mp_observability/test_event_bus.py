@@ -145,6 +145,34 @@ class TestLifecycle:
 
 
 class TestEventDispatch:
+    def test_publish_on_stream_uses_native_recorder_when_available(self, bus):
+        stream = MagicMock()
+        stream.ptr = 123
+        event = _make_event(device="cuda:0", count=7)
+
+        with (
+            patch.object(_bus_module, "_has_native_recorder", True),
+            patch.object(_bus_module, "_lmc_ops", create=True) as lmc_ops,
+        ):
+            bus.publish_on_stream(stream, event)
+
+        lmc_ops.record_event_on_stream.assert_called_once_with(
+            123,
+            event.event_type.value,
+            event.session_id,
+            {"device": "cuda:0"},
+            {"count": 7},
+        )
+
+    def test_publish_on_stream_uses_host_callback_without_native_recorder(self, bus):
+        stream = MagicMock()
+        event = _make_event(device="cuda:0")
+
+        with patch.object(_bus_module, "_has_native_recorder", False):
+            bus.publish_on_stream(stream, event)
+
+        stream.launch_host_func.assert_called_once_with(bus.publish, event)
+
     def test_event_reaches_subscriber(self, bus):
         sub = _RecordingSubscriber()
         bus.register_subscriber(sub)

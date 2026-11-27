@@ -88,6 +88,17 @@ class EventType(Enum):
     MP_STORE_END = "mp.store.end"
     MP_RETRIEVE_START = "mp.retrieve.start"
     MP_RETRIEVE_END = "mp.retrieve.end"
+    MP_RETRIEVE_PRODUCER_READY = "mp.retrieve.producer_ready"
+    MP_RETRIEVE_COPY_START = "mp.retrieve.copy.start"
+    MP_RETRIEVE_COPY_END = "mp.retrieve.copy.end"
+    MP_RETRIEVE_SCATTER_START = "mp.retrieve.scatter.start"
+    MP_RETRIEVE_SCATTER_END = "mp.retrieve.scatter.end"
+    # Per-logical-chunk H2D staging-copy boundaries. Metadata additionally
+    # carries chunk_index so the same chunk can be correlated across object
+    # groups. Scatter remains request-level because one launch can cover
+    # multiple chunks.
+    MP_RETRIEVE_CHUNK_COPY_START = "mp.retrieve.chunk_copy.start"
+    MP_RETRIEVE_CHUNK_COPY_END = "mp.retrieve.chunk_copy.end"
     MP_LOOKUP_PREFETCH_START = "mp.lookup_prefetch.start"
     MP_LOOKUP_PREFETCH_END = "mp.lookup_prefetch.end"
 
